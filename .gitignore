@@ -1,0 +1,29 @@
+# Kişisel veri: ses kayıtları GitHub'a gitmez
+dataset/
+oda_sesi/
+*.wav
+*.m4a
+*.mp3
+*.flac
+*.ogg
+*.webm
+
+# Sanal ortam ve indirilen modeller
+.venv/
+pretrained_models/
+
+# Proje brief'i
+*.pdf
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Next.js (Aşama 6)
+node_modules/
+.next/
+.vercel/
+
+# Sistem
+.DS_Store
