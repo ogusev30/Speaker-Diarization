@@ -31,3 +31,4 @@ node_modules/
 
 # Çalıştırılmış notebook (içinde ses kayıtları var)
 training_calisti.ipynb
+.claude/settings.local.json

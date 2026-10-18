@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sıra Kimde?</title>
+<meta name="description" content="Konuş, seni tanıyayım. Cem, Elif, Onur ve Zehra'nın sesini tarayıcıda tanıyan uygulama.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='1' width='26' height='30' fill='%23111'/%3E%3Crect x='1' y='0' width='25' height='29' fill='%23E3242B' stroke='%23111' stroke-width='2'/%3E%3Crect x='8' y='7' width='11' height='11' fill='%23FBF6E9' stroke='%23111' stroke-width='2'/%3E%3Crect x='6' y='22' width='15' height='3' fill='%23111'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --felt: #0E7A47;
+  --felt-deep: #0A5C35;
+  --felt-ink: #FBF6E9;
+  --wood: #8A4B1F;
+  --wood-lip: #5E3112;
+  --ivory: #FBF6E9;
+  --paper: #F1EAD6;
+  --ink: #111111;
+  --ink-soft: #3B3830;
+  --cem: #E3242B;   --cem-on: #FFFFFF;
+  --elif: #FFC21A;  --elif-on: #111111;
+  --onur: #1F4FD8;  --onur-on: #FFFFFF;
+  --zehra: #141414; --zehra-on: #FFFFFF;
+  --line: 3px;
+  --shadow: 6px 6px 0 var(--ink);
+  --shadow-sm: 4px 4px 0 var(--ink);
+  --sec: 56px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --felt: #0B5B36;
+    --felt-deep: #073E25;
+    --ivory: #F3ECD8;
+    --paper: #E4DCC5;
+  }
+}
+:root[data-theme="dark"] {
+  --felt: #0B5B36;
+  --felt-deep: #073E25;
+  --ivory: #F3ECD8;
+  --paper: #E4DCC5;
+}
+
+* { box-sizing: border-box; margin: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--felt);
+  color: var(--ink);
+  font-family: "Archivo", system-ui, sans-serif;
+  font-variation-settings: "wdth" 100;
+  font-size: 16px;
+  line-height: 1.45;
+  min-height: 100vh;
+}
+::selection { background: var(--elif); color: var(--ink); }
+:focus-visible { outline: 4px solid var(--elif); outline-offset: 3px; box-shadow: 0 0 0 7px var(--ink); }
+button { font: inherit; color: inherit; cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- preview bar (not part of the product) ---------- */
+.preview {
+  background: #1A1A1A; color: #D8D4C8;
+  font: 13px/1.3 system-ui, sans-serif;
+  padding: 10px 16px;
+  display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center;
+  border-bottom: 2px dashed #555;
+}
+.preview strong { color: #fff; font-weight: 700; margin-right: 4px; }
+.preview button {
+  background: transparent; border: 1px solid #666; color: #D8D4C8;
+  padding: 4px 8px; font-size: 13px; border-radius: 0;
+}
+.preview button[aria-pressed="true"] { background: #D8D4C8; color: #111; border-color: #D8D4C8; }
+.preview .sep { width: 1px; height: 18px; background: #555; }
+.preview small { color: #9A968A; }
+
+/* ---------- shell ---------- */
+.app { max-width: 1240px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.top {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  color: var(--felt-ink); margin-bottom: 20px;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand svg { flex: none; }
+.brand h1 {
+  font-size: clamp(1.6rem, 5vw, 2.4rem); line-height: 1;
+  font-weight: 900; font-variation-settings: "wdth" 72; letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+.brand p { font-size: 15px; margin-top: 4px; opacity: .92; }
+.status {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--ivory); border: var(--line) solid var(--ink); box-shadow: var(--shadow-sm);
+  padding: 6px 10px; font-weight: 700; font-size: 14px; white-space: nowrap; color: var(--ink);
+}
+.status i { width: 10px; height: 10px; background: var(--ink); display: block; }
+.status[data-tone="live"] i { background: var(--felt); outline: 2px solid var(--ink); }
+.status[data-tone="busy"] i { background: transparent; border: 2px solid var(--ink); }
+
+.grid { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) {
+  .grid { grid-template-columns: minmax(340px, 5fr) minmax(0, 7fr); align-items: start; }
+}
+.col { display: grid; gap: 24px; min-width: 0; grid-template-columns: minmax(0, 1fr); }
+
+.board {
+  background: var(--ivory); border: var(--line) solid var(--ink); box-shadow: var(--shadow);
+  padding: 18px;
+}
+.board h2 {
+  font-size: 1.25rem; line-height: 1.1; font-weight: 900; font-variation-settings: "wdth" 80; text-transform: uppercase; letter-spacing: .01em;
+  margin-bottom: 14px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+}
+.board h2 span { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ink-soft); font-size: 14px; }
+
+/* ---------- stage: last speaker ---------- */
+.stage { perspective: 900px; }
+.bigtile {
+  border: 4px solid var(--ink); box-shadow: var(--shadow);
+  padding: 18px 18px 16px; position: relative; min-height: 172px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  background: var(--c, var(--paper)); color: var(--on, var(--ink));
+  transform-origin: 50% 0;
+}
+.bigtile .shape { position: absolute; top: 16px; right: 16px; }
+.bigtile .who {
+  font-size: clamp(3rem, 13vw, 5.75rem); line-height: .9; font-weight: 900;
+  font-variation-settings: "wdth" 62; text-transform: uppercase; letter-spacing: -0.01em;
+  padding-right: 56px; overflow-wrap: anywhere;
+}
+.bigtile .meta { font-size: 16px; font-weight: 600; margin-top: 10px; }
+.bigtile .meta b { font-weight: 900; }
+.bigtile.empty { background: var(--paper); border-style: dashed; box-shadow: none; }
+.bigtile.empty .who { font-size: clamp(2rem, 8vw, 3rem); color: var(--ink-soft); }
+.bigtile.unknown .who { font-size: clamp(2rem, 9vw, 4.5rem); overflow-wrap: normal; }
+.bigtile.unknown {
+  background: var(--paper); border-style: dashed;
+}
+.flip { animation: flip .5s cubic-bezier(.2,.8,.2,1); }
+@keyframes flip { from { transform: rotateX(-80deg); } to { transform: rotateX(0); } }
+
+.scores { margin-top: 18px; display: grid; gap: 8px; }
+.score { display: grid; grid-template-columns: 92px 1fr 52px; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+.score .lbl { display: flex; align-items: center; gap: 8px; }
+.score .bar { height: 18px; border: 2px solid var(--ink); background: var(--ivory); position: relative; }
+.score .bar i { position: absolute; inset: 0 auto 0 0; background: var(--c); border-right: 2px solid var(--ink); transition: width .5s cubic-bezier(.2,.8,.2,1); }
+.score .bar i[style*="width: 0%"] { border-right: 0; }
+.score .pct { text-align: right; font-variant-numeric: tabular-nums; }
+.score.lead .lbl { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 4px; }
+.scores-note { font-size: 14px; color: var(--ink-soft); margin-top: 10px; }
+
+/* notice inside stage (no speech / error / loading) */
+.notice { border: 4px solid var(--ink); padding: 18px; background: var(--paper); }
+.notice h3 { font-size: 1.5rem; line-height: 1.1; font-weight: 900; font-variation-settings: "wdth" 80; margin-bottom: 8px; }
+.notice p { max-width: 46ch; }
+.notice.error { background: var(--ink); color: var(--ivory); }
+.notice.error .btn { margin-top: 14px; }
+.progress { margin-top: 14px; height: 22px; border: 3px solid var(--ink); background: var(--ivory); }
+.progress i { display: block; height: 100%; background: var(--ink); width: 0; transition: width .3s linear; }
+.progress-meta { display: flex; justify-content: space-between; font-weight: 700; margin-top: 6px; font-size: 14px; }
+
+/* ---------- mic button ---------- */
+.mic {
+  width: 100%; min-height: 96px; border: 4px solid var(--ink); box-shadow: var(--shadow);
+  background: var(--ivory); display: flex; align-items: center; justify-content: center; gap: 16px;
+  font-size: 2rem; font-weight: 900; font-variation-settings: "wdth" 80; text-transform: uppercase;
+  transition: transform .08s, box-shadow .08s;
+}
+.mic:hover { background: #fff; }
+.mic:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0 var(--ink); }
+.mic[data-live="true"] { background: var(--ink); color: var(--ivory); }
+.mic:disabled { cursor: not-allowed; background: var(--paper); color: var(--ink-soft); box-shadow: none; border-style: dashed; transform: none; }
+.level { display: none; gap: 4px; align-items: flex-end; height: 34px; }
+.mic[data-live="true"] .level { display: flex; }
+.level i { width: 7px; background: var(--ivory); height: 6px; transition: height .08s linear; }
+.mic-hint { color: var(--felt-ink); font-size: 15px; margin-top: 10px; font-weight: 600; }
+
+/* ---------- rack (timeline) ---------- */
+.rack-board { padding: 18px 0 0; }
+.rack-board h2 { padding: 0 18px; }
+.rack {
+  background: var(--wood); border-top: var(--line) solid var(--ink);
+  overflow-x: auto; overflow-y: hidden; scrollbar-color: var(--ivory) var(--wood-lip);
+  scroll-behavior: smooth;
+}
+.rack::-webkit-scrollbar { height: 12px; }
+.rack::-webkit-scrollbar-track { background: var(--wood-lip); }
+.rack::-webkit-scrollbar-thumb { background: var(--ivory); border: 2px solid var(--ink); }
+.track { position: relative; height: 150px; min-width: 100%; }
+.lip {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 30px;
+  background: var(--wood-lip); border-top: var(--line) solid var(--ink);
+}
+.tick { position: absolute; bottom: 0; height: 30px; color: var(--ivory); font-size: 12px; font-weight: 700; padding: 7px 0 0 5px; border-left: 2px solid var(--ivory); font-variant-numeric: tabular-nums; }
+.tile {
+  position: absolute; top: 14px; height: 92px; padding: 8px 10px;
+  background: var(--c); color: var(--on); border: var(--line) solid var(--ink); box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;
+}
+.tile .nm { font-size: 1.5rem; line-height: 1; font-weight: 900; font-variation-settings: "wdth" 62; text-transform: uppercase; white-space: nowrap; }
+.tile .row { display: flex; justify-content: space-between; align-items: flex-end; gap: 6px; }
+.tile .pc { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.tile.unknown {
+  background: var(--paper); color: var(--ink); border-style: dashed;
+}
+.tile.unknown .nm { font-size: 1.05rem; font-variation-settings: "wdth" 70; }
+.tile.pending { background: transparent; border-style: dashed; border-color: var(--ivory); box-shadow: none; color: var(--ivory); justify-content: center; font-weight: 700; font-size: 14px; }
+.tile.drop { animation: drop .55s cubic-bezier(.3,1.4,.5,1); }
+@keyframes drop { from { transform: translateY(-70px); } to { transform: translateY(0); } }
+.rack-empty { color: var(--ivory); padding: 26px 18px 0; font-weight: 600; max-width: 40ch; }
+
+/* ---------- legend + model card ---------- */
+.players { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 560px) { .players { grid-template-columns: repeat(5, 1fr); } }
+.player {
+  background: var(--c); color: var(--on); border: var(--line) solid var(--ink);
+  padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  font-weight: 900; font-variation-settings: "wdth" 70; text-transform: uppercase; font-size: 1.15rem;
+}
+.player.unknown { background: var(--paper); color: var(--ink); border-style: dashed; font-size: .95rem; }
+.legend-note { font-size: 14px; color: var(--ink-soft); margin-top: 12px; }
+
+.model { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+.der {
+  border: var(--line) solid var(--ink); background: var(--elif); padding: 10px 14px; text-align: center;
+}
+.der b { display: block; font-size: 2.25rem; line-height: 1; font-weight: 900; font-variation-settings: "wdth" 70; font-variant-numeric: tabular-nums; }
+.der span { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.model h3 { font-size: 1.15rem; font-weight: 800; }
+.model p { font-size: 14px; color: var(--ink-soft); margin-top: 4px; max-width: 52ch; }
+
+.foot { color: var(--felt-ink); font-size: 14px; margin-top: 28px; max-width: 70ch; }
+
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .flip, .tile.drop { animation: none; }
+  .rack { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+
+<div class="preview" role="region" aria-label="Önizleme kontrolleri">
+  <strong>ÖNİZLEME</strong><small>örnek veri, model bağlı değil</small>
+  <span class="sep"></span>
+  <button data-go="loading">Model yükleniyor</button>
+  <button data-go="ready">Hazır</button>
+  <button data-go="listening">Dinliyor</button>
+  <button data-go="results">Sonuçlar</button>
+  <button data-go="nospeech">Konuşma yok</button>
+  <button data-go="error">Mikrofon hatası</button>
+  <span class="sep"></span>
+  <button data-act="utter">+ Konuşma bitti</button>
+  <button data-act="unknown">+ Yabancı ses</button>
+</div>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg width="40" height="46" viewBox="0 0 40 46" aria-hidden="true">
+        <rect x="6" y="5" width="32" height="40" fill="#111"/>
+        <rect x="2" y="1" width="32" height="40" fill="#E3242B" stroke="#111" stroke-width="3"/>
+        <rect x="10" y="9" width="16" height="16" fill="#FBF6E9" stroke="#111" stroke-width="3"/>
+        <rect x="8" y="31" width="20" height="4" fill="#111"/>
+      </svg>
+      <div>
+        <h1>Sıra Kimde?</h1>
+        <p>Konuş, seni tanıyayım.</p>
+      </div>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite"><i></i><span>Model yükleniyor</span></div>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="board stage" aria-labelledby="stage-h">
+        <h2 id="stage-h">Son konuşan</h2>
+        <div id="stage"></div>
+      </section>
+      <div>
+        <button class="mic" id="mic" data-live="false">
+          <svg width="34" height="40" viewBox="0 0 34 40" aria-hidden="true" class="mic-icon">
+            <rect x="10" y="2" width="14" height="22" fill="none" stroke="currentColor" stroke-width="4"/>
+            <path d="M4 16v4c0 7 6 11 13 11s13-4 13-11v-4" fill="none" stroke="currentColor" stroke-width="4"/>
+            <path d="M17 31v7M9 38h16" stroke="currentColor" stroke-width="4"/>
+          </svg>
+          <span id="mic-label">Başlat</span>
+          <span class="level" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        </button>
+        <p class="mic-hint" id="mic-hint"></p>
+      </div>
+    </div>
+
+    <div class="col">
+      <section class="board rack-board" aria-labelledby="rack-h">
+        <h2 id="rack-h">Zaman çizelgesi <span id="rack-count"></span></h2>
+        <div class="rack" id="rack" tabindex="0" aria-label="Konuşmaların zaman çizelgesi">
+          <div class="track" id="track"><div class="lip"></div></div>
+        </div>
+      </section>
+
+      <section class="board" aria-labelledby="players-h">
+        <h2 id="players-h">Tanıdığı sesler</h2>
+        <div class="players" id="players"></div>
+        <p class="legend-note">Model sadece bu dört kişiyi tanır. Emin olma oranı %60'ın altına düşerse isim yerine "Tanıyamadım" yazar; yabancı biri konuştuğunda da bunu görürsün.</p>
+      </section>
+
+      <section class="board" aria-labelledby="model-h">
+        <div class="model">
+          <div class="der"><b class="num">%4,0</b><span>DER</span></div>
+          <div>
+            <h3 id="model-h">Model B: ECAPA + sınıflandırıcı</h3>
+            <p>DER, 20 deneme sohbetinde konuşma süresinin yüzde kaçında yanıldığını gösterir. Düşük olan daha iyi. Model telefonunda ya da bilgisayarında çalışır, sesin hiçbir yere gönderilmez.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <p class="foot">Her konuşma bittiğinde sonuç gelir: ses 2 saniyelik parçalarla, yarım saniye kaydırılarak dinlenir. En iyi sonuç için mikrofona bir kol mesafesinden konuş.</p>
+</div>
+
+<script>
+const PEOPLE = [
+  { id: "cem",   name: "Cem",   shape: "square" },
+  { id: "elif",  name: "Elif",  shape: "triangle" },
+  { id: "onur",  name: "Onur",  shape: "circle" },
+  { id: "zehra", name: "Zehra", shape: "diamond" },
+];
+const THRESHOLD = 0.6;
+
+// Örnek konuşmalar (sentetik). Gerçek uygulamada bunlar modelden gelir.
+const SAMPLE = [
+  { dur: 3.2, gap: 0.6, p: [0.03, 0.91, 0.01, 0.05] },
+  { dur: 4.1, gap: 0.8, p: [0.01, 0.01, 0.97, 0.01] },
+  { dur: 2.4, gap: 0.5, p: [0.04, 0.88, 0.02, 0.06] },
+  { dur: 5.0, gap: 0.9, p: [0.01, 0.25, 0.02, 0.72] },
+  { dur: 3.6, gap: 0.4, p: [0.95, 0.02, 0.02, 0.01] },
+  { dur: 2.8, gap: 0.7, p: [0.08, 0.31, 0.13, 0.48] },
+  { dur: 2.2, gap: 0.6, p: [0.02, 0.03, 0.93, 0.02] },
+];
+const STRANGER = { dur: 3.0, gap: 0.6, p: [0.22, 0.34, 0.18, 0.26] };
+
+const $ = (s) => document.querySelector(s);
+const css = (id) => `--c: var(--${id}); --on: var(--${id}-on);`;
+const pct = (x) => "%" + Math.round(x * 100);
+
+function shapeSvg(shape, size = 22, fill = "none") {
+  const s = size, sw = 3, h = sw / 2;
+  const body = {
+    square:   `<rect x="${h}" y="${h}" width="${s - sw}" height="${s - sw}"/>`,
+    triangle: `<polygon points="${s / 2},${h} ${s - h},${s - h} ${h},${s - h}"/>`,
+    circle:   `<circle cx="${s / 2}" cy="${s / 2}" r="${s / 2 - h}"/>`,
+    diamond:  `<polygon points="${s / 2},${h} ${s - h},${s / 2} ${s / 2},${s - h} ${h},${s / 2}"/>`,
+  }[shape];
+  return `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" aria-hidden="true" fill="${fill}" stroke="currentColor" stroke-width="${sw}">${body}</svg>`;
+}
+const unknownSvg = (s = 22) =>
+  `<svg width="${s}" height="${s}" viewBox="0 0 22 22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3"><rect x="1.5" y="1.5" width="19" height="19" stroke-dasharray="4 3"/><path d="M8 8.5a3 3 0 1 1 4 2.8c-.7.3-1 .8-1 1.5V14M11 16.5v1.5"/></svg>`;
+
+function decide(p) {
+  let best = 0;
+  p.forEach((x, i) => { if (x > p[best]) best = i; });
+  return { idx: best, conf: p[best], known: p[best] >= THRESHOLD };
+}
+
+// ---------- state ----------
+const app = { state: "loading", segs: [], t: 0, next: 0, loadTimer: null, levelTimer: null };
+
+function setStatus(text, tone) {
+  const el = $("#status");
+  el.dataset.tone = tone || "";
+  el.querySelector("span").textContent = text;
+}
+
+function renderPlayers() {
+  $("#players").innerHTML = PEOPLE.map((p) =>
+    `<div class="player" style="${css(p.id)}"><span>${p.name}</span>${shapeSvg(p.shape, 20)}</div>`
+  ).join("") + `<div class="player unknown"><span>Tanıyamadım</span>${unknownSvg(20)}</div>`;
+}
+
+function renderStage(flip) {
+  const stage = $("#stage");
+  const s = app.state;
+  if (s === "loading") {
+    stage.innerHTML = `<div class="notice"><h3>Model yükleniyor</h3><p>İlk açılışta model telefonuna ya da bilgisayarına iner. Bir sonraki açılışta beklemezsin.</p>
+      <div class="progress" role="progressbar" aria-label="Model indiriliyor" aria-valuemin="0" aria-valuemax="22" id="pbar"><i></i></div>
+      <div class="progress-meta num"><span id="pmb">0 MB</span><span>22 MB</span></div></div>`;
+    return;
+  }
+  if (s === "error") {
+    stage.innerHTML = `<div class="notice error" role="alert"><h3>Mikrofona erişilemedi</h3><p>Lütfen izin ver. Adres çubuğundaki kilit simgesine dokun, mikrofonu "İzin ver" yap, sonra tekrar dene.</p>
+      <button class="mic" style="min-height:64px;font-size:1.3rem;margin-top:16px" data-go="ready">Tekrar dene</button></div>`;
+    return;
+  }
+  if (s === "nospeech") {
+    stage.innerHTML = `<div class="notice" role="alert"><h3>Konuşma bulunamadı</h3><p>Mikrofon ses aldı ama içinde konuşma yoktu. Biraz daha yakından ve yüksek sesle tekrar dene.</p></div>`;
+    return;
+  }
+  const last = app.segs[app.segs.length - 1];
+  if (!last) {
+    stage.innerHTML = `<div class="bigtile empty"><div class="who">Henüz kimse</div><div class="meta">Başlat'a bas ve konuş. Konuşman bitince adın burada çıkar.</div></div>`;
+    return;
+  }
+  const d = decide(last.p);
+  const person = PEOPLE[d.idx];
+  const order = last.p.map((x, i) => i).sort((a, b) => last.p[b] - last.p[a]);
+  const tile = d.known
+    ? `<div class="bigtile ${flip ? "flip" : ""}" style="${css(person.id)}">
+         <span class="shape">${shapeSvg(person.shape, 40, "none")}</span>
+         <div class="who">${person.name}</div>
+         <div class="meta">Model <b class="num">${pct(d.conf)}</b> emin</div></div>`
+    : `<div class="bigtile unknown ${flip ? "flip" : ""}">
+         <span class="shape">${unknownSvg(40)}</span>
+         <div class="who">Tanıyamadım</div>
+         <div class="meta">En yakın ${person.name}, ama sadece <b class="num">${pct(d.conf)}</b>. Bu dört kişiden biri değilsen normal.</div></div>`;
+  const scores = order.map((i) => {
+    const p = PEOPLE[i];
+    return `<div class="score ${i === d.idx && d.known ? "lead" : ""}" style="${css(p.id)}">
+      <span class="lbl">${shapeSvg(p.shape, 16)}${p.name}</span>
+      <span class="bar"><i style="width: ${Math.round(last.p[i] * 100)}%"></i></span>
+      <span class="pct">${pct(last.p[i])}</span></div>`;
+  }).join("");
+  stage.innerHTML = tile + `<div class="scores" aria-label="Dört kişinin puanı">${scores}</div>`;
+}
+
+function fmt(sec) { const m = Math.floor(sec / 60), s = Math.floor(sec % 60); return `${m}:${String(s).padStart(2, "0")}`; }
+
+function renderRack(dropLast, pending) {
+  const track = $("#track");
+  const SEC = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sec"));
+  const end = Math.max(app.t + (pending ? pending.gap + pending.dur : 0), 0);
+  const width = Math.max(end * SEC + 80, $("#rack").clientWidth);
+  track.style.width = width + "px";
+  let html = `<div class="lip"></div>`;
+  for (let s = 0; s * SEC < width; s += 5) html += `<span class="tick" style="left:${s * SEC}px">${fmt(s)}</span>`;
+  if (!app.segs.length && !pending) {
+    html += `<p class="rack-empty">Henüz taş yok. Her konuşma bittiğinde buraya, konuşanın renginde bir taş dizilir.</p>`;
+  }
+  app.segs.forEach((g, k) => {
+    const d = decide(g.p), person = PEOPLE[d.idx];
+    const pos = `left:${g.start * SEC}px;width:${g.dur * SEC - 6}px;`;
+    const drop = dropLast && k === app.segs.length - 1 ? " drop" : "";
+    html += d.known
+      ? `<div class="tile${drop}" style="${pos}${css(person.id)}" title="${person.name}, ${fmt(g.start)} - ${fmt(g.start + g.dur)}">
+           <span class="nm">${person.name}</span><span class="row"><span class="pc">${pct(d.conf)}</span>${shapeSvg(person.shape, 18)}</span></div>`
+      : `<div class="tile unknown${drop}" style="${pos}" title="Tanıyamadım, ${fmt(g.start)} - ${fmt(g.start + g.dur)}">
+           <span class="nm">Tanıyamadım</span><span class="row"><span class="pc">${pct(d.conf)}</span>${unknownSvg(18)}</span></div>`;
+  });
+  if (pending) {
+    const st = app.t + pending.gap;
+    html += `<div class="tile pending" style="left:${st * SEC}px;width:${pending.dur * SEC - 6}px">Dinleniyor...</div>`;
+  }
+  track.innerHTML = html;
+  const n = app.segs.length;
+  $("#rack-count").textContent = n ? `${n} konuşma, ${fmt(app.t)}` : "";
+  const rack = $("#rack");
+  rack.scrollLeft = rack.scrollWidth;
+}
+
+function renderMic() {
+  const mic = $("#mic"), s = app.state;
+  const live = s === "listening";
+  mic.dataset.live = String(live);
+  mic.disabled = s === "loading";
+  $("#mic-label").textContent = s === "loading" ? "Bekle" : live ? "Durdur" : "Başlat";
+  $("#mic-hint").textContent =
+    s === "loading" ? "Model inince düğme açılır." :
+    live ? "Dinliyorum. Konuşman bitince taş gelir." :
+    s === "error" ? "" : "Mikrofon izni istenecek.";
+  clearInterval(app.levelTimer);
+  if (live) {
+    const bars = mic.querySelectorAll(".level i");
+    app.levelTimer = setInterval(() => bars.forEach((b) => (b.style.height = 6 + Math.random() * 28 + "px")), 110);
+  }
+}
+
+function go(state) {
+  app.state = state;
+  clearInterval(app.loadTimer);
+  document.querySelectorAll(".preview [data-go]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.go === state)));
+  const st = {
+    loading: ["Model yükleniyor", "busy"], ready: ["Hazır", ""], listening: ["Dinliyor", "live"],
+    results: ["Hazır", ""], nospeech: ["Konuşma bulunamadı", ""], error: ["Mikrofon kapalı", ""],
+  }[state];
+  setStatus(st[0], st[1]);
+  if (state === "ready") { app.segs = []; app.t = 0; app.next = 0; }
+  if (state === "results" && !app.segs.length) { while (app.next < SAMPLE.length) push(SAMPLE[app.next++]); }
+  renderStage(false); renderRack(false); renderMic();
+  if (state === "loading") {
+    let mb = 0;
+    app.loadTimer = setInterval(() => {
+      mb = Math.min(22, mb + 1.3);
+      $("#pbar i").style.width = (mb / 22) * 100 + "%";
+      $("#pbar").setAttribute("aria-valuenow", mb.toFixed(1));
+      $("#pmb").textContent = mb.toFixed(1).replace(".", ",") + " MB";
+      if (mb >= 22) { clearInterval(app.loadTimer); setTimeout(() => go("ready"), 400); }
+    }, 120);
+  }
+}
+
+function push(u) {
+  const start = app.t + u.gap;
+  app.segs.push({ start, dur: u.dur, p: u.p });
+  app.t = start + u.dur;
+}
+
+function utter(u) {
+  if (app.state !== "listening") go("listening");
+  setStatus("Hesaplanıyor", "busy");
+  renderRack(false, u);
+  setTimeout(() => {
+    push(u);
+    setStatus("Dinliyor", "live");
+    renderRack(true); renderStage(true);
+  }, 700);
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-go],[data-act],#mic");
+  if (!b) return;
+  if (b.dataset.go) return go(b.dataset.go);
+  if (b.dataset.act === "utter") return utter(SAMPLE[app.next++ % SAMPLE.length]);
+  if (b.dataset.act === "unknown") return utter(STRANGER);
+  if (b.id === "mic") go(app.state === "listening" ? (app.segs.length ? "results" : "ready") : "listening");
+});
+window.addEventListener("resize", () => renderRack(false));
+
+renderPlayers();
+go("loading");
+</script>
+</body>
+</html>
