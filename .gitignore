@@ -32,3 +32,6 @@ node_modules/
 # Çalıştırılmış notebook (içinde ses kayıtları var)
 training_calisti.ipynb
 .claude/settings.local.json
+
+# ONNX exportunun tüm sürümleri (fp32 84 MB); seçilen model web/public/models/ içinde
+web_model/

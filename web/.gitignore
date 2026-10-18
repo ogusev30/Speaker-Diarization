@@ -1,0 +1,6 @@
+node_modules/
+.next/
+.vercel/
+# scripts/copy-assets.mjs her build'de node_modules'tan kopyalar
+public/ort/
+public/vad/

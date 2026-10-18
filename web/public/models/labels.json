@@ -1,0 +1,27 @@
+{
+ "labels": [
+  "cem",
+  "elif",
+  "onur",
+  "zehra"
+ ],
+ "sample_rate": 16000,
+ "window_samples": 32000,
+ "hop_samples": 8000,
+ "input": "waveform",
+ "outputs": [
+  "probs",
+  "embedding"
+ ],
+ "preprocess": "mono 16 kHz float32 in [-1,1]; each 2 s window RMS-normalised to -20 dBFS then clipped",
+ "files": {
+  "fp32": "model_b.onnx",
+  "fp16": "model_b.fp16.onnx",
+  "int8": "model_b.int8.onnx"
+ },
+ "model": "model_b.int8.onnx",
+ "model_adi": "Model B: ECAPA + sınıflandırıcı",
+ "der": 0.04038056539244463,
+ "int8_uyum": 1.0,
+ "l2_normalize_embedding": true
+}

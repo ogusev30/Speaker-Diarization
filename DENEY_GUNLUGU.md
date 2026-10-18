@@ -123,3 +123,32 @@ Eğitilen parametre: Model A 245.988, Model B 772 (+20,8 M donuk ECAPA).
 **Tahminim doğru çıktı mı?** *(Aşama 3'teki tahminle karşılaştır)*
 
 **Kaydedilen modeller (2. çalıştırma):** `modeller/model_a.pt`, `modeller/model_b_kafa.pt` (ECAPA `pretrained_models/` içinde), `modeller/sonuclar.json`.
+
+## Aşama 5 — Dene ve Karar Ver
+
+`app.py` (Gradio, "Sıra Kimde? Model Arena"): mikrofon veya dosya → 16 kHz mono → Silero VAD → 2 sn pencere / 0,5 sn kaydırma → iki model aynı anda → yan yana zaman çizelgeleri (isim + % confidence), "şu an konuşan" ve canlı skor.
+
+**İlk deneme** (Elif'in test oturumundan 12 sn, "şu an konuşan: elif" seçili): **Model A 0/6**, **Model B 6/6**. Model A Elif'i %82–97 eminlikle Zehra sandı; yani hem yanıldı hem yanıldığından çok emindi. Model B %90–99 eminlikle Elif dedi.
+
+**Karar: web'e Model B gidiyor.** DER (%4,0'a karşı %26,1) ve canlı test aynı şeyi söyledi. Kaybeden Model A'nın zorlandığı yer: Elif'in laptop sesi (Zehra'ya benzetiyor) ve iki eğitim arasında sonucun çok değişmesi.
+
+*(Ailemle/arkadaşlarımla farklı mesafe ve odalarda yaptığım canlı testin notları buraya.)*
+
+## Aşama 6 — Productize ve Deploy
+
+- **ONNX:** `scripts/onnx_export.py` (kursun `web_export/export_onnx.py`'sini kullanır). Ses → spektrogram → ECAPA → sınıflandırıcı tek dosyada.
+  | Sürüm | Boyut | Test parçalarında `.pt` ile aynı kişi | Embedding benzerliği (min) |
+  |---|---|---|---|
+  | fp32 | 84,1 MB | %100 (198/198) | 1,0000 |
+  | fp16 | 42,6 MB | %100 | 1,0000 |
+  | **int8** | **22,2 MB** | **%100** | 0,9863 |
+
+  int8 uyumu %99 eşiğinin üstünde → web uygulaması **int8** kullanıyor.
+- **Web uygulaması:** `web/` (Next.js 15.5.28, onnxruntime-web 1.30.0, @ricky0123/vad-web 0.0.31, sürümler sabit). Tasarım `tasarim/onizleme.html`'den. Model Gradio'yu kullanmıyor, sadece Model B var.
+  - Mikrofonda yankı engelleme, gürültü azaltma ve otomatik seviye kapalı (vad-web'in varsayılanında üçü de açık; `getStream`/`resumeStream` ile kapatıldı).
+  - Her konuşma bitince 2 sn pencere / 0,5 sn kaydırma, kısa konuşma sessizlikle doldurulur, her pencere -20 dBFS'e eşitlenip kırpılır; %60 altı "Tanıyamadım".
+  - JS ön işleme + int8 model Node'da Python'la karşılaştırıldı: 12/12 pencerede aynı kişi, olasılık farkı en çok 0,03.
+  - vad-web ve bizim kod `onnxruntime-web/wasm`'ı tek dosyaya bağlıyor (`next.config.mjs`): tarayıcıda tek ONNX Runtime.
+- **Canlı link:** *(Vercel linki)*
+- **Telefonda bir pencere:** *(uygulamadaki "Bu cihazda bir pencere: … ms" yazısından)*
+- **Datasette olmayan biri konuşunca:** *(ne oldu?)*
