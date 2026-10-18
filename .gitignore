@@ -28,3 +28,6 @@ node_modules/
 
 # Sistem
 .DS_Store
+
+# Çalıştırılmış notebook (içinde ses kayıtları var)
+training_calisti.ipynb

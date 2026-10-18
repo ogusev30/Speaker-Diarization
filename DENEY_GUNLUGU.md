@@ -27,7 +27,7 @@ Tek komut: `.venv/bin/python scripts/asama2.py`
 
 1. **Tek format:** her şey WAV, 16 kHz, mono (`ffmpeg`).
 2. **Sessizlik:** Silero VAD ile sadece konuşma bırakıldı (kayıtların ~%75–95'i konuşma).
-3. **Seviye eşitleme:** her 2 saniyelik parça kendi RMS'ine göre **-20 dBFS**'e getirildi. Gradio ve web uygulaması da her pencereyi aynı şekilde eşitleyecek.
+3. **Seviye eşitleme:** her 2 saniyelik parça kendi RMS'ine göre **-20 dBFS**'e getirildi, sonra [-1, 1]'e kırpıldı. Bu, `web_export/export_onnx.py`'nin `labels.json`'a yazdığı ön işlemeyle birebir aynı; Gradio ve web uygulaması da her pencereyi böyle eşitleyecek.
 4. **Parçalar:** 2 saniyelik, üst üste binmeyen; sondaki 2 saniyeden kısa kısım atıldı.
 5. **Bölme (oturuma göre):** oturum 1 + 2 → train, oturum 4 → validation, oturum 3 → test. Script, hiçbir kaydın iki bölüme düşmediğini kontrol ediyor.
 6. **Augmentation:** her train parçasının yanına 3 kopya: oda sesi (SNR 5–20 dB), yapay yankı (RT60 0,2–0,7 sn), seviye değişimi (-12…+6 dB). Hız/perde değişikliği yok.
@@ -43,3 +43,80 @@ Tek komut: `.venv/bin/python scripts/asama2.py`
 Sahte sohbetlerde konuşma süresi dengeli: cem %27, zehra %27, elif %24, onur %23.
 
 **Spektrogramlar** (`veri/kontrol/spektrogramlar.png`): Elif ve Zehra'da harmonik çizgiler (yatay parlak bantlar) daha seyrek, yani ses perdesi daha yüksek; Cem ve Onur'da çizgiler daha sık ve alt frekanslarda toplanmış, yani daha kalın sesler. Model en kolay bu iki grubu ayıracak; zorluk grup içinde (Elif–Zehra, Cem–Onur) olacak.
+
+## Aşama 3 — Model Seçimi
+
+> Durum: **onaylandı**, bu mimariyle eğitildi (Aşama 4).
+
+### Model A — sıfırdan CNN
+
+**Girdi:** 2 sn'lik parçanın log-mel spektrogramı, boyutu `[1, 80, 201]` (80 mel bandı × 201 zaman adımı).
+`torchaudio.transforms.MelSpectrogram(sample_rate=16000, n_fft=400, hop_length=160, n_mels=80)` → `log(m + 1e-6)`.
+(25 ms pencere, 10 ms kaydırma. `web_export/export_onnx.py`'nin `export_model_a`'sı tam olarak bu adımı tarayıcıya taşıyor.)
+
+**Mimari** (`nn.Sequential`, canlı panel ilk 5 bloğu çizer):
+
+| # | Katman | Çıkış boyutu |
+|---|--------|--------------|
+| 1 | Conv 3×3 (1→16) → BatchNorm → ReLU → MaxPool 2×2 | 16 × 40 × 100 |
+| 2 | Conv 3×3 (16→32) → BatchNorm → ReLU → MaxPool 2×2 | 32 × 20 × 50 |
+| 3 | Conv 3×3 (32→64) → BatchNorm → ReLU → MaxPool 2×2 | 64 × 10 × 25 |
+| 4 | Conv 3×3 (64→128) → BatchNorm → ReLU → MaxPool 2×2 | 128 × 5 × 12 |
+| 5 | Conv 3×3 (128→128) → BatchNorm → ReLU → MaxPool 2×2 | 128 × 2 × 6 |
+|   | Global average pooling → Flatten → Dropout(0.3) → Linear(128 → 4) | 4 |
+
+Toplam **~246 bin parametre**.
+
+**Neden bu boyut:** train'de 410 temiz parça var (aug ile 1640). Panel örneğindeki gibi 32-64-128-128-256 kanal ve büyük bir Linear katmanı bu kadar az data için çok büyük olurdu, model kayıtları ezberlerdi. Kanalları yarıya indirip sonda tek bir küçük Linear bıraktık. Global average pooling sayesinde model sesin parçanın *neresinde* olduğunu değil, *nasıl* bir ses olduğunu öğrenir.
+
+**Eğitim:** AdamW (lr 1e-3, weight decay 1e-4), batch 64, en çok 40 epoch, cosine learning rate. Validation loss'u en iyi olan epoch'un ağırlıkları saklanır. `torch.set_num_threads(48)`. Ölçülen hız: **~4 sn/epoch** → tüm eğitim **~3 dakika**.
+
+### Model B — pretrained ECAPA + küçük sınıflandırıcı
+
+- `speechbrain/spkrec-ecapa-voxceleb` (20,8 M parametre, VoxCeleb'de 7.000+ kişiyle eğitilmiş). **Donuk**: hiç eğitilmez.
+- Her parçanın 192 sayılık embedding'i bir kez hesaplanıp diske kaydedilir (tüm parçalar için ölçülen süre **~75 sn**).
+- **Sınıflandırıcı:** embedding L2 ile normalize edilir → `Linear(192 → 4)` (yani lojistik regresyon). AdamW, tüm data tek batch, birkaç yüz adım: **birkaç saniye**.
+- **Neden sadece bir Linear:** ECAPA'nın embedding'leri zaten kişileri ayırmak için eğitilmiş; 4 kişiyi ayırmak için düz bir çizgi yetmeli. Daha büyük bir sınıflandırıcı sadece ezber riskini artırır. Export, `export_model_b(..., l2_normalize_embedding=True)` ile aynı adımı tarayıcıya taşır.
+
+### Adil karşılaştırma
+
+İki model de **aynı** `manifest.csv`'yi kullanır: aynı train parçaları (temiz + 3 aug kopyası), aynı validation ve test, aynı -20 dBFS seviye eşitleme. Tek fark: Model A her şeyi bizim 1640 parçamızdan öğrenir, Model B'nin "kulağı" binlerce kişiden önceden öğrenilmiş.
+
+**DER ölçümü (ikisi için aynı):** sahte sohbette Silero VAD konuşmayı bulur → 2 sn'lik pencere 0,5 sn kaydırılır → her 0,5 sn'lik dilimin kişisi, üstüne düşen pencerelerin olasılık ortalamasından seçilir → art arda aynı kişi birleşir → `pyannote.metrics.IdentificationErrorRate`.
+
+### Bilinen sınırlamalar
+
+- Cem'in oturum 4'ü olmadığı için validation'da Cem yok. "En iyi epoch" seçimi Cem'i görmeden yapılıyor; Cem'in gerçek başarısını sadece test ve DER gösterecek.
+- Model sadece bu 4 kişiyi tanır; yabancı bir sesi de bu 4 kişiden birine benzetir (web uygulamasında "Tanıyamadım" eşiği bunun için).
+
+### Tahminim
+
+> *(buraya senin tahminin gelecek: hangi model kazanır, DER'leri yaklaşık ne olur, pretraining ne kadar fark yaratır, en çok kimler karışır?)*
+
+## Aşama 4 — Training ve DER Karşılaştırma
+
+`training.ipynb` baştan sona çalıştı (toplam ~8 dk). Sonuçlar:
+
+| | Model A (sıfırdan CNN) | Model B (ECAPA + Linear) |
+|---|---|---|
+| Eğitilen parametre | 245.988 | 772 (+20,8 M donuk) |
+| Eğitim süresi | 3,1 dk | 0,4 sn (+ 60 sn embedding) |
+| Validation accuracy (seçilen epoch) | %87,4 (epoch 2) | %99,4 |
+| Test accuracy (2 sn parça) | %91,4 | **%100** |
+| **DER (20 sahte sohbet)** | **%13,5** | **%4,1** |
+| ├ yanlış kişi | %10,2 | %0,7 |
+| ├ kaçırılan konuşma | %1,5 | %1,5 |
+| └ yanlış alarm | %1,8 | %1,8 |
+| Ortalama confidence | %84 | %91 |
+
+**Şu an önde olan: Model B.** DER'i Model A'nın üçte biri. Kalan %4,1'in neredeyse tamamı VAD'dan geliyor (kaçırılan konuşma + yanlış alarm iki modelde de aynı); Model B'nin "yanlış kişi" hatası sadece %0,7.
+
+**Model A nerede zorlandı:**
+- **Elif ↔ Zehra:** testte Elif'in parçalarının %36'sını Zehra sandı. Cem, Onur ve Zehra'nın hepsi doğru. Spektrogramlarda da Elif ile Zehra'nın sesleri birbirine en yakın görünüyordu.
+- **Overfitting:** train accuracy 2. epoch'ta %100'e çıktı, validation ~%87'de kaldı ve validation loss 2. epoch'tan sonra hiç iyileşmedi. Model 410 temiz parçadaki kayıtları ezberliyor; 40 epoch'un 38'i boşa gitti. Saklanan ağırlıklar 2. epoch'tan.
+
+**Pretraining'in farkı:** Model B'nin öğrenen kısmı Model A'nın 300'de biri kadar ve 0,4 saniyede eğitildi, ama hiç karıştırmadı. ECAPA binlerce kişiden "iki sesi birbirinden ayıran şeyin ne olduğunu" önceden öğrenmiş; Model A ise bunu 4 kişinin 7 dakikalık sesinden öğrenmeye çalışıyor.
+
+**Tahminim doğru çıktı mı?** *(Aşama 3'teki tahminle karşılaştır)*
+
+**Kaydedilen modeller:** `modeller/model_a.pt`, `modeller/model_b_kafa.pt` (ECAPA `pretrained_models/` içinde), `modeller/sonuclar.json`.

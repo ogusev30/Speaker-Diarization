@@ -1,0 +1,30 @@
+{
+ "Model A": {
+  "der": 0.13528139586270546,
+  "bilesenler": {
+   "total": 1022.7940000000001,
+   "confusion": 104.139,
+   "missed detection": 15.65999999999999,
+   "false alarm": 18.566
+  }
+ },
+ "Model B": {
+  "der": 0.04073840871182272,
+  "bilesenler": {
+   "total": 1022.7940000000001,
+   "confusion": 7.441000000000027,
+   "missed detection": 15.65999999999999,
+   "false alarm": 18.566
+  }
+ },
+ "test_acc": {
+  "Model A (sıfırdan CNN)": 0.9141414141414141,
+  "Model B (ECAPA)": 1.0
+ },
+ "isimler": [
+  "cem",
+  "elif",
+  "onur",
+  "zehra"
+ ]
+}

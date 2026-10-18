@@ -81,18 +81,14 @@ def yaz(yol, x):
 
 
 def seviye_esitle(x, hedef_dbfs=HEDEF_DBFS):
-    """RMS'i hedef seviyeye getirir, tepe noktası 0.99'u geçerse aşağı çeker."""
+    """RMS'i hedef seviyeye getirir, sonra [-1, 1]'e kırpar (web_export/labels.json ile aynı)."""
     x = np.asarray(x, dtype=np.float32)
     if x.size == 0:
         return x
     rms = float(np.sqrt(np.mean(x ** 2)))
     if rms < 1e-6:
         return x
-    y = x * (10 ** (hedef_dbfs / 20) / rms)
-    tepe = float(np.abs(y).max())
-    if tepe > 0.99:
-        y *= 0.99 / tepe
-    return y.astype(np.float32)
+    return np.clip(x * (10 ** (hedef_dbfs / 20) / rms), -1, 1).astype(np.float32)
 
 
 def tablo_yazdir(basliklar, satirlar):
