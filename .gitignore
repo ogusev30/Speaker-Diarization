@@ -1,6 +1,7 @@
 # Kişisel veri: ses kayıtları GitHub'a gitmez
 dataset/
 oda_sesi/
+veri/
 *.wav
 *.m4a
 *.mp3

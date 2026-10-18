@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ses Kayıt Stüdyosu</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --kart: #ffffff; --yazi: #1d1d1f; --soluk: #6b6b70; --cizgi: #e3e1dc;
+    --vurgu: #6d28d9; --kirmizi: #dc2626; --yesil: #15803d; --sari: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--yazi);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 24px; margin: 0 0 2px; }
+  .alt { color: var(--soluk); margin: 0 0 20px; }
+  .izgara { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 820px) { .izgara { grid-template-columns: 1fr; } }
+  .kart { background: var(--kart); border: 1px solid var(--cizgi); border-radius: 12px; padding: 16px; }
+  .kart h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--soluk); margin: 0 0 12px; }
+  label { display: block; font-weight: 600; margin: 10px 0 4px; }
+  input[type=text], select { width: 100%; padding: 9px 10px; border: 1px solid var(--cizgi); border-radius: 8px; font: inherit; background: #fff; }
+  .plan { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin-top: 12px;
+          background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+  .plan b { color: var(--soluk); font-weight: 500; }
+  button { font: inherit; border: 0; border-radius: 8px; padding: 10px 16px; cursor: pointer; }
+  button:disabled { opacity: .4; cursor: default; }
+  .ana { background: var(--vurgu); color: #fff; font-weight: 600; }
+  .kayit { background: var(--kirmizi); color: #fff; font-weight: 600; font-size: 17px; width: 100%; padding: 14px; }
+  .ikincil { background: var(--bg); border: 1px solid var(--cizgi); }
+  .sure { font-size: 40px; font-variant-numeric: tabular-nums; font-weight: 700; text-align: center; margin: 8px 0 0; }
+  .hedef { text-align: center; color: var(--soluk); font-size: 13px; }
+  .metre { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; margin: 10px 0 4px; }
+  .metre div { height: 100%; width: 0; background: var(--yesil); transition: width .08s; }
+  .seviye { font-size: 13px; color: var(--soluk); min-height: 20px; }
+  .satir { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  audio { width: 100%; margin-top: 12px; }
+  .mesaj { margin-top: 12px; padding: 10px 12px; border-radius: 8px; display: none; }
+  .mesaj.ok { display: block; background: #dcfce7; color: var(--yesil); }
+  .mesaj.hata { display: block; background: #fee2e2; color: var(--kirmizi); }
+  .mesaj.bilgi { display: block; background: #fef3c7; color: var(--sari); }
+  .metin { max-height: 420px; overflow-y: auto; }
+  .metin h3 { font-size: 15px; margin: 14px 0 4px; }
+  .metin h3:first-child { margin-top: 0; }
+  .metin p { margin: 0; font-size: 18px; line-height: 1.65; }
+  .serbest { font-size: 18px; background: var(--bg); padding: 12px; border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--cizgi); }
+  th { color: var(--soluk); font-weight: 500; }
+  .tamam { color: var(--yesil); } .eksik { color: var(--soluk); } .az { color: var(--sari); }
+  .tam-genislik { grid-column: 1 / -1; }
+  #telefonBolum, #mikBolum { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ses Kayıt Stüdyosu</h1>
+  <p class="alt">Kişiyi ve oturumu seç. Laptop oturumlarını buradan kaydet, telefon kayıtlarını buradan yükle.</p>
+
+  <div class="izgara">
+    <section class="kart">
+      <h2>1 · Kim, hangi oturum?</h2>
+      <label for="kisi">Kişinin adı (demoda bu isim görünecek)</label>
+      <input id="kisi" type="text" list="kisiListe" placeholder="örneğin ayse" autocomplete="off">
+      <datalist id="kisiListe"></datalist>
+
+      <label for="oturum">Oturum</label>
+      <select id="oturum">
+        <option value="1">Oturum 1 · telefon · Metin 1 + 2</option>
+        <option value="2" selected>Oturum 2 · laptop · Metin 5 + serbest</option>
+        <option value="3">Oturum 3 · laptop · Metin 3 + 4</option>
+        <option value="4">Oturum 4 · telefon · serbest</option>
+        <option value="oda_laptop">Oda sesi · laptop (30 sn, kimse konuşmasın)</option>
+        <option value="oda_telefon">Oda sesi · telefon (30 sn, kimse konuşmasın)</option>
+      </select>
+      <div class="plan" id="plan"></div>
+    </section>
+
+    <section class="kart">
+      <h2>2 · Kaydet</h2>
+
+      <div id="mikBolum">
+        <button class="kayit" id="kayitBtn">● Kaydı başlat</button>
+        <div class="sure" id="sure">0:00</div>
+        <div class="hedef" id="hedef"></div>
+        <div class="metre"><div id="metre"></div></div>
+        <div class="seviye" id="seviye"></div>
+        <audio id="onizleme" controls hidden></audio>
+        <div class="satir">
+          <button class="ana" id="kaydetBtn" disabled>Kaydı sakla</button>
+          <button class="ikincil" id="atBtn" disabled>Sil, baştan kaydet</button>
+        </div>
+      </div>
+
+      <div id="telefonBolum">
+        <p>Bu oturum <b>telefonla</b> kaydedilir. Telefonun ses kayıt uygulamasıyla kaydet
+           (iPhone'da Ses Kayıtları, Android'de Ses Kaydedici). Sonra dosyayı buradan yükle,
+           doğru adla doğru klasöre konur.</p>
+        <input type="file" id="dosyaSec" accept="audio/*,.m4a,.wav,.mp3">
+        <div class="satir"><button class="ana" id="yukleBtn" disabled>Dosyayı yükle</button></div>
+      </div>
+
+      <div class="mesaj" id="mesaj"></div>
+    </section>
+
+    <section class="kart tam-genislik">
+      <h2>Okunacak metin</h2>
+      <div class="metin" id="metin"></div>
+    </section>
+
+    <section class="kart tam-genislik">
+      <h2>Durum</h2>
+      <div id="durum">Yükleniyor...</div>
+    </section>
+  </div>
+</main>
+
+<script>
+const METINLER = {
+  1: `Bugün hava güneşli ama rüzgârlı. Sabah erkenden kalkıp kahvaltıda peynir, zeytin ve domates yedim. Otobüs durağına yürürken çocuklar top oynuyordu, bir köpek de onların peşinden koşuyordu. Okulda yapay zekâ dersinde sesin nasıl bir resme dönüştüğünü öğrendik: her kelimenin kendi rengi ve şekli var. Akşam ailemle birlikte yemek yaptık; annem çorbayı, ben de salatayı hazırladım. Yemekten sonra kardeşim gitar çaldı, babam da eski bir şarkıyı mırıldandı. Hafta sonu dağa çıkıp şehri yukarıdan izlemek istiyoruz. Çantama su, fener, şapka ve bir defter koyacağım. Sence en güzel ses hangisi: yağmurun cama vurması mı, denizin kıyıya çarpması mı, yoksa çaydanlığın düdüğü mü?`,
+  2: `Geçen salı saat üç buçukta Ankara'dan gelen trene yetişmek için koşturdum. Biletim yedinci vagondaydı, koltuk numaram kırk iki. Yanımda oturan yaşlı bir teyze bana ömrü boyunca on dört ülke gezdiğini anlattı. En çok Japonya'yı sevmiş: sokakların tertemiz olduğunu, insanların trende hiç yüksek sesle konuşmadığını söyledi. Ben de ona okulda yaptığımız yapay zekâ projesinden bahsettim. Şaşırdı ve sordu: "Yani bilgisayar sesimden beni tanıyabilir mi?" Evet, dedim, yeterince örnek dinlerse. Pencereden sarı ayçiçeği tarlaları, gümüş renkli bir göl ve uzakta karlı dağlar görünüyordu. İstasyona vardığımızda teyze bana bir avuç fındık verdi ve "Bol şans, evladım," dedi. Eve dönerken o cümleyi düşünüp gülümsedim.`,
+  3: `Küçük bir kasabada, denizin kenarında eski bir fener vardı. Fenerin bekçisi Hüseyin Bey her akşam güneş batarken yüz on sekiz basamağı tek tek çıkardı. Elinde bir termos çay, cebinde de buruşmuş bir harita olurdu. Fırtınalı gecelerde dalgalar kayalara öyle sert çarpardı ki camlar titrerdi. Bir gece telsizden cızırtılı bir ses duydu: "Yardım edin, motorumuz durdu!" Hüseyin Bey hemen ışığı çevirdi, gemiye yolu gösterdi ve sahil güvenliği aradı. Sabaha karşı balıkçılar sağ salim limana döndü. Kasaba halkı ona teşekkür etmek için börek, baklava ve taze ekmek getirdi. Hüseyin Bey ise utangaç bir şekilde omuz silkti: "Ben sadece ışığı yaktım," dedi. O günden beri çocuklar fenere "umudun evi" diyor.`,
+  4: `Telefonum çaldı, arayan kuzenim Zeynep'ti. "Yarınki doğum günü partisi için yol tarifine ihtiyacım var," dedi. Anlattım: metrodan çıkınca sağa dön, eczanenin önünden geç, ikinci ışıklardan sola sap. Mavi kapılı, beş katlı binanın üçüncü katı. Zil bozuk, o yüzden kapıyı iki kez tıklat. "Peki ne getireyim?" diye sordu. Pasta hazır, dedim, sen meyve suyu ve biraz kurabiye al. Saat altıda başlıyoruz, ama erken gelirsen balonları şişirmeme yardım edebilirsin. Zeynep güldü: "Geçen sefer yirmi balonu tek başıma şişirmiştim, unuttun mu?" Unutmadım tabii. Bu kez pompa aldım, söz veriyorum. Telefonu kapattıktan sonra listeye baktım: mumlar, tabaklar, peçeteler, bir de müzik. Her şey neredeyse tamamdı.`,
+  5: `Sevgili dedeciğim, bu mektubu sana okuldaki son dersten sonra yazıyorum. Bugün öğretmenimiz bize gelecekte hangi mesleği seçmek istediğimizi sordu. Ben hiç düşünmeden mühendis dedim, çünkü sen bana küçükken bozuk radyoları nasıl tamir ettiğini göstermiştin. Hatırlıyor musun, o eski radyodan ilk ses geldiğinde ikimiz de sevinçten zıplamıştık? Şimdi bilgisayarlara sesleri tanımayı öğretiyorum. Biraz garip ama çok heyecanlı. Annem yaz tatilinde köye geleceğimizi söyledi. Bahçedeki erik ağacı bu yıl meyve verdi mi? Kuzular büyüdü mü? Seninle yine sabah erkenden balığa gitmek, gölün kıyısında çay içmek istiyorum. Kendine iyi bak, ilaçlarını unutma. Seni çok özledim. Kocaman sevgilerle, torunun.`,
+};
+
+const PLAN = {
+  "1": { cihaz: "Telefon", ton: "Normal", mesafe: "Yakın (bir karış)", metinler: [1, 2], hedef: [120, 150] },
+  "2": { cihaz: "Laptop", ton: "Normal", mesafe: "Uzak (odanın öbür ucu)", metinler: [5],
+         serbest: "Metin 5'ten sonra serbest konuş: günün nasıl geçti, sevdiğin bir film.", hedef: [120, 150] },
+  "3": { cihaz: "Laptop", ton: "Alçak ve sakin (fısıltı değil)", mesafe: "Orta (kol mesafesi)", metinler: [3, 4], hedef: [120, 150] },
+  "4": { cihaz: "Telefon", ton: "Enerjik, biraz yüksek ve tiz", mesafe: "Yakın (bir karış)", metinler: [],
+         serbest: "Serbest konuş: seni heyecanlandıran bir şeyi anlat.", hedef: [120, 150] },
+  "oda_laptop": { cihaz: "Laptop", ton: "Kimse konuşmasın", mesafe: "Ofisin normal hali", metinler: [],
+                  serbest: "30 saniye boyunca kimse konuşmasın. Bu ses augmentation'da ve sahte sohbetlerde kullanılacak.", hedef: [30, 40] },
+  "oda_telefon": { cihaz: "Telefon", ton: "Kimse konuşmasın", mesafe: "Ofisin normal hali", metinler: [],
+                   serbest: "30 saniye boyunca kimse konuşmasın. Bu ses augmentation'da ve sahte sohbetlerde kullanılacak.", hedef: [30, 40] },
+};
+
+const $ = (id) => document.getElementById(id);
+const dkSn = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const odaMi = () => $("oturum").value.startsWith("oda");
+
+function mesaj(tur, yazi) { const m = $("mesaj"); m.className = "mesaj " + tur; m.textContent = yazi; }
+function mesajTemizle() { $("mesaj").className = "mesaj"; }
+
+function planGoster() {
+  const p = PLAN[$("oturum").value];
+  $("plan").innerHTML = `<b>Cihaz</b><span>${p.cihaz}</span><b>Ses tonu</b><span>${p.ton}</span>` +
+                        `<b>Mesafe</b><span>${p.mesafe}</span><b>Süre</b><span>${dkSn(p.hedef[0])}–${dkSn(p.hedef[1])}</span>`;
+  let html = p.metinler.map((n) => `<h3>Metin ${n}</h3><p>${METINLER[n]}</p>`).join("");
+  if (p.serbest) html += `<h3>${p.metinler.length ? "Sonra" : "Talimat"}</h3><p class="serbest">${p.serbest}</p>`;
+  $("metin").innerHTML = html;
+  $("hedef").textContent = `hedef ${dkSn(p.hedef[0])}–${dkSn(p.hedef[1])}`;
+  const telefon = p.cihaz === "Telefon";
+  $("telefonBolum").style.display = telefon ? "block" : "none";
+  $("mikBolum").style.display = telefon ? "none" : "block";
+  $("kisi").disabled = odaMi();
+  mesajTemizle();
+}
+
+// ---------- Mikrofon kaydı ----------
+// Gürültü azaltma, yankı engelleme ve otomatik seviye kapalı: model ham sesi öğrenmeli.
+let kaydediyor = false, akis, ctx, islemci, parcalar = [], sr = 48000, baslangic, sayac, wavBlob = null, tepe = 0;
+
+async function kayitBaslat() {
+  if (!odaMi() && !$("kisi").value.trim()) { mesaj("hata", "Önce kişinin adını yaz."); return; }
+  try {
+    akis = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+    });
+  } catch (e) {
+    mesaj("hata", "Mikrofona erişilemedi. Tarayıcıda mikrofon izni ver ve tekrar dene.");
+    return;
+  }
+  ctx = new AudioContext();
+  sr = ctx.sampleRate;
+  const kaynak = ctx.createMediaStreamSource(akis);
+  islemci = ctx.createScriptProcessor(4096, 1, 1);
+  const sessiz = ctx.createGain(); sessiz.gain.value = 0;
+  parcalar = []; tepe = 0;
+  islemci.onaudioprocess = (e) => {
+    const x = e.inputBuffer.getChannelData(0);
+    parcalar.push(new Float32Array(x));
+    let t = 0, p = 0;
+    for (let i = 0; i < x.length; i++) { t += x[i] * x[i]; p = Math.max(p, Math.abs(x[i])); }
+    tepe = Math.max(tepe, p);
+    const db = 10 * Math.log10(t / x.length + 1e-10);
+    $("metre").style.width = Math.max(0, Math.min(100, (db + 60) / 60 * 100)) + "%";
+    $("metre").style.background = p > 0.98 ? "var(--kirmizi)" : "var(--yesil)";
+    $("seviye").textContent = p > 0.98 ? "Çok yüksek, ses bozuluyor! Mikrofondan biraz uzaklaş."
+                            : db < -50 ? "Ses çok düşük ya da sessizlik" : `Seviye ${db.toFixed(0)} dB`;
+  };
+  kaynak.connect(islemci); islemci.connect(sessiz); sessiz.connect(ctx.destination);
+
+  kaydediyor = true;
+  baslangic = Date.now();
+  sayac = setInterval(() => { $("sure").textContent = dkSn((Date.now() - baslangic) / 1000); }, 250);
+  $("kayitBtn").textContent = "■ Kaydı durdur";
+  $("kaydetBtn").disabled = $("atBtn").disabled = true;
+  $("oturum").disabled = $("kisi").disabled = true;
+  $("onizleme").hidden = true;
+  mesajTemizle();
+}
+
+function kayitDurdur() {
+  kaydediyor = false;
+  clearInterval(sayac);
+  islemci.disconnect(); akis.getTracks().forEach((t) => t.stop()); ctx.close();
+  const n = parcalar.reduce((a, p) => a + p.length, 0);
+  const tum = new Float32Array(n); let o = 0;
+  for (const p of parcalar) { tum.set(p, o); o += p.length; }
+  wavBlob = wavYap(tum, sr);
+  $("onizleme").src = URL.createObjectURL(wavBlob); $("onizleme").hidden = false;
+  $("kayitBtn").textContent = "● Kaydı başlat";
+  $("kaydetBtn").disabled = $("atBtn").disabled = false;
+  $("oturum").disabled = false; $("kisi").disabled = odaMi();
+  $("metre").style.width = "0"; $("seviye").textContent = "";
+  const sure = n / sr, h = PLAN[$("oturum").value].hedef;
+  if (tepe > 0.98) mesaj("bilgi", "Kayıtta ses bozulması (clipping) var. Biraz daha uzaktan tekrar kaydetmeyi düşün.");
+  else if (sure < h[0] - 15) mesaj("bilgi", `Kayıt ${dkSn(sure)}, hedef en az ${dkSn(h[0])}. Yine de saklayabilirsin.`);
+  else mesaj("ok", `Kayıt ${dkSn(sure)}. Dinle, sonra "Kaydı sakla"ya bas.`);
+}
+
+function wavYap(x, sr) {
+  const b = new ArrayBuffer(44 + x.length * 2), v = new DataView(b);
+  const s = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  s(0, "RIFF"); v.setUint32(4, 36 + x.length * 2, true); s(8, "WAVE"); s(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  s(36, "data"); v.setUint32(40, x.length * 2, true);
+  for (let i = 0; i < x.length; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, x[i])) * 0x7fff, true);
+  return new Blob([b], { type: "audio/wav" });
+}
+
+// ---------- Sunucuya gönderme ----------
+async function gonder(blob, dosyaAdi, uzerineYaz = false) {
+  const f = new FormData();
+  f.append("dosya", blob, dosyaAdi);
+  f.append("oturum", $("oturum").value);
+  f.append("kisi", $("kisi").value);
+  f.append("uzerine_yaz", uzerineYaz ? "1" : "0");
+  const r = await fetch("kaydet", { method: "POST", body: f });  // göreli yol: proxy altında çalışsın
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 409) {
+    if (confirm(`${j.detail}. Eskisinin üstüne yazılsın mı?`)) return gonder(blob, dosyaAdi, true);
+    mesaj("bilgi", "Saklanmadı, eski kayıt duruyor."); return false;
+  }
+  if (!r.ok) { mesaj("hata", j.detail || "Kaydedilemedi."); return false; }
+  mesaj("ok", `Saklandı: ${j.yol} (${dkSn(j.sure)})`);
+  durumYukle();
+  return true;
+}
+
+$("kayitBtn").onclick = () => (kaydediyor ? kayitDurdur() : kayitBaslat());
+$("kaydetBtn").onclick = async () => { if (await gonder(wavBlob, "kayit.wav")) { $("kaydetBtn").disabled = true; } };
+$("atBtn").onclick = () => { wavBlob = null; $("onizleme").hidden = true; $("sure").textContent = "0:00";
+                             $("kaydetBtn").disabled = $("atBtn").disabled = true; mesajTemizle(); };
+$("dosyaSec").onchange = () => { $("yukleBtn").disabled = !$("dosyaSec").files.length; };
+$("yukleBtn").onclick = async () => {
+  if (!odaMi() && !$("kisi").value.trim()) { mesaj("hata", "Önce kişinin adını yaz."); return; }
+  const d = $("dosyaSec").files[0];
+  mesaj("bilgi", "Yükleniyor...");
+  if (await gonder(d, d.name)) { $("dosyaSec").value = ""; $("yukleBtn").disabled = true; }
+};
+$("oturum").onchange = planGoster;
+
+// ---------- Durum tablosu ----------
+async function durumYukle() {
+  try {
+    const j = await (await fetch("durum")).json();
+    const kisiler = Object.keys(j.kisiler);
+    $("kisiListe").innerHTML = kisiler.map((k) => `<option value="${k}">`).join("");
+    let html = "<table><tr><th>Kişi</th><th>Oturum 1</th><th>Oturum 2</th><th>Oturum 3</th><th>Oturum 4</th><th>Toplam</th></tr>";
+    for (const k of kisiler) {
+      let toplam = 0;
+      const hucre = [1, 2, 3, 4].map((n) => {
+        const d = j.kisiler[k].find((f) => f.dosya.startsWith(`oturum${n}_`));
+        if (!d) return `<td class="eksik">—</td>`;
+        toplam += d.sure;
+        return `<td class="${d.sure >= 90 ? "tamam" : "az"}">${dkSn(d.sure)}</td>`;
+      }).join("");
+      html += `<tr><td>${k}</td>${hucre}<td class="${toplam >= 480 ? "tamam" : "az"}"><b>${dkSn(toplam)}</b></td></tr>`;
+    }
+    if (!kisiler.length) html += `<tr><td colspan="6" class="eksik">Henüz kayıt yok</td></tr>`;
+    html += "</table>";
+    const oda = (c) => j.oda_sesi.find((f) => f.dosya.includes(c));
+    html += `<p>Oda sesi: laptop ${oda("laptop") ? "✓ " + dkSn(oda("laptop").sure) : "—"} · telefon ${oda("telefon") ? "✓ " + dkSn(oda("telefon").sure) : "—"}</p>`;
+    html += `<p class="alt">Hedef: en az 4 kişi, herkesin 4 oturumu ve toplam en az 8:00.</p>`;
+    $("durum").innerHTML = html;
+  } catch (e) { $("durum").textContent = "Durum alınamadı."; }
+}
+
+planGoster();
+durumYukle();
+</script>
+</body>
+</html>
