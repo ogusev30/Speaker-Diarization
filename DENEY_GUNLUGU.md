@@ -9,7 +9,7 @@
 | elif  | 1:50           | 2:23           | 2:07           | 2:00           | 8:19   |
 | zehra | 2:14           | 2:25           | 2:01           | 2:01           | 8:42   |
 | onur  | 1:28           | 2:31           | 2:04           | 2:33           | 8:35   |
-| cem   | 1:32           | 2:20           | 2:20           | **yok**        | 6:12   |
+| cem   | 3:14 (2 kayıt)  | 2:20           | 2:20           | 2:01           | 9:54   |
 
 Oda sesi: `ofis_laptop.wav` (0:41), `ofis_telefon.m4a` (0:31). İkisinde de VAD konuşma bulmadı.
 
@@ -18,7 +18,7 @@ Oda sesi: `ofis_laptop.wav` (0:41), `ofis_telefon.m4a` (0:31). İkisinde de VAD 
 - **Cem** okuma planına uymadı: telefonda Metin 4 + 5, laptop oturum 2'de Metin 2 + 3, laptop oturum 3'te Metin 1 ve serbest konuşma.
   Telefon kaydı oturum 1 (train) yapıldı ki model Cem'in telefon sesini de görsün; aksi halde "telefon = Cem değil" öğrenebilirdi.
   Laptop kayıtlarının adları Cem'in koyduğu gibi bırakıldı (oturum 2 uzak, oturum 3 orta mesafe varsayıldı).
-- **Cem'in oturum 4'ü eksik**: validation setinde Cem yok ve toplamı 8 dakikanın altında. Gelirse Aşama 2 tekrar çalıştırılacak.
+- **Cem'in oturum 4'ü sonradan geldi** (WhatsApp üzerinden iki telefon kaydı). ECAPA iki kaydın her 2 sn'lik parçasını da Cem olarak tanıdı. Daha sürekli/enerjik olan (2:01) oturum 4 (validation) yapıldı, diğeri (1:41) train'e ek telefon kaydı olarak eklendi (`oturum1_telefon_2`).
 - Cem'in laptop kayıtlarının ilk saniyesinde yüksek bir tık sesi var; Onur'un kayıtları yüksek seviyede, birkaç yerde kısa clipping var. Seviye eşitleme ve VAD bunları büyük ölçüde temizliyor.
 
 ## Aşama 2 — Data Cleaning
@@ -35,7 +35,7 @@ Tek komut: `.venv/bin/python scripts/asama2.py`
 
 | Kişi  | Train | Train + aug | Val | Test |
 |-------|-------|-------------|-----|------|
-| cem   | 87    | 348         | 0   | 51   |
+| cem   | 117   | 468         | 48  | 51   |
 | elif  | 98    | 392         | 48  | 47   |
 | onur  | 106   | 424         | 69  | 55   |
 | zehra | 119   | 476         | 58  | 45   |
@@ -86,7 +86,6 @@ Toplam **~246 bin parametre**.
 
 ### Bilinen sınırlamalar
 
-- Cem'in oturum 4'ü olmadığı için validation'da Cem yok. "En iyi epoch" seçimi Cem'i görmeden yapılıyor; Cem'in gerçek başarısını sadece test ve DER gösterecek.
 - Model sadece bu 4 kişiyi tanır; yabancı bir sesi de bu 4 kişiden birine benzetir (web uygulamasında "Tanıyamadım" eşiği bunun için).
 
 ### Tahminim
@@ -95,28 +94,32 @@ Toplam **~246 bin parametre**.
 
 ## Aşama 4 — Training ve DER Karşılaştırma
 
-`training.ipynb` baştan sona çalıştı (toplam ~8 dk). Sonuçlar:
+`training.ipynb` iki kez baştan sona çalıştırıldı: önce Cem'in oturum 4'ü olmadan, sonra Cem'in yeni kayıtlarıyla. Sahte sohbetler (test oturumları) iki çalıştırmada da aynı, yani DER'ler doğrudan karşılaştırılabilir.
 
-| | Model A (sıfırdan CNN) | Model B (ECAPA + Linear) |
-|---|---|---|
-| Eğitilen parametre | 245.988 | 772 (+20,8 M donuk) |
-| Eğitim süresi | 3,1 dk | 0,4 sn (+ 60 sn embedding) |
-| Validation accuracy (seçilen epoch) | %87,4 (epoch 2) | %99,4 |
-| Test accuracy (2 sn parça) | %91,4 | **%100** |
-| **DER (20 sahte sohbet)** | **%13,5** | **%4,1** |
-| ├ yanlış kişi | %10,2 | %0,7 |
-| ├ kaçırılan konuşma | %1,5 | %1,5 |
-| └ yanlış alarm | %1,8 | %1,8 |
-| Ortalama confidence | %84 | %91 |
+| | Model A, 1. çalıştırma | **Model A, 2. çalıştırma** | Model B, 1. çalıştırma | **Model B, 2. çalıştırma** |
+|---|---|---|---|---|
+| Train parçası (aug dahil) | 1640 | 1760 | 1640 | 1760 |
+| Eğitim süresi | 3,1 dk | 3,7 dk | 0,4 sn + 60 sn embedding | 0,4 sn + embedding |
+| Validation accuracy (seçilen epoch) | %87,4 (Cem yok) | %95,1 | %99,4 (Cem yok) | %100 |
+| Test accuracy (2 sn parça) | %91,4 | **%78,3** | %100 | **%100** |
+| **DER (20 sahte sohbet)** | %13,5 | **%26,1** | %4,1 | **%4,0** |
+| ├ yanlış kişi | %10,2 | %22,7 | %0,7 | %0,7 |
+| ├ kaçırılan konuşma | %1,5 | %1,5 | %1,5 | %1,5 |
+| └ yanlış alarm | %1,8 | %1,8 | %1,8 | %1,8 |
+| Ortalama confidence | %84 | %87 | %91 | %91 |
 
-**Şu an önde olan: Model B.** DER'i Model A'nın üçte biri. Kalan %4,1'in neredeyse tamamı VAD'dan geliyor (kaçırılan konuşma + yanlış alarm iki modelde de aynı); Model B'nin "yanlış kişi" hatası sadece %0,7.
+Eğitilen parametre: Model A 245.988, Model B 772 (+20,8 M donuk ECAPA).
+
+**Önde olan: Model B**, iki çalıştırmada da. DER'in neredeyse tamamı VAD'dan (kaçırılan konuşma + yanlış alarm iki modelde aynı); Model B'nin "yanlış kişi" hatası sadece %0,7. Test parçalarında hiç hata yapmadı.
 
 **Model A nerede zorlandı:**
-- **Elif ↔ Zehra:** testte Elif'in parçalarının %36'sını Zehra sandı. Cem, Onur ve Zehra'nın hepsi doğru. Spektrogramlarda da Elif ile Zehra'nın sesleri birbirine en yakın görünüyordu.
-- **Overfitting:** train accuracy 2. epoch'ta %100'e çıktı, validation ~%87'de kaldı ve validation loss 2. epoch'tan sonra hiç iyileşmedi. Model 410 temiz parçadaki kayıtları ezberliyor; 40 epoch'un 38'i boşa gitti. Saklanan ağırlıklar 2. epoch'tan.
+- **Elif ↔ Zehra:** iki çalıştırmada da tek büyük hata bu. Testte (oturum 3, laptop orta mesafe) Elif'in parçalarını 1. çalıştırmada %36, 2. çalıştırmada **%91** oranında Zehra sandı. Cem, Onur ve Zehra iki çalıştırmada da %100 doğru.
+  Validation'da (oturum 4, telefon) Elif'i doğru biliyor; yani sorun Elif'in *laptop* sesi. Train'deki tek Elif laptop kaydı uzak mesafeden (oturum 2, sesi en düşük ve en gürültülü kayıt); model Elif'i laptoptan orta mesafede hiç duymadı ve o koşulda Zehra'ya benzetiyor.
+- **Kararsızlık:** iki çalıştırma arasında sadece Cem'in datası değişti, ama Elif'in test doğruluğu %64'ten %9'a düştü. Model A'nın bu karışıklıktaki kararı rastlantıya çok bağlı: 4 kişinin ~7'şer dakikalık sesi, bir sesi "kimin sesi" yapan şeyi sağlam öğrenmeye yetmiyor.
+- **Overfitting:** train accuracy 2. epoch'ta ~%100'e çıkıyor, validation loss 2. epoch'tan sonra iyileşmiyor; seçilen ağırlıklar iki seferde de 2. epoch'tan.
 
-**Pretraining'in farkı:** Model B'nin öğrenen kısmı Model A'nın 300'de biri kadar ve 0,4 saniyede eğitildi, ama hiç karıştırmadı. ECAPA binlerce kişiden "iki sesi birbirinden ayıran şeyin ne olduğunu" önceden öğrenmiş; Model A ise bunu 4 kişinin 7 dakikalık sesinden öğrenmeye çalışıyor.
+**Pretraining'in farkı:** Model B'nin öğrenen kısmı Model A'nın 300'de biri kadar ve 0,4 saniyede eğitiliyor, ama iki çalıştırmada da aynı sonucu veriyor ve Elif'le Zehra'yı hiç karıştırmıyor. ECAPA binlerce kişiden ve binlerce farklı mikrofon/odadan "sesi kişiye ait yapan şeyi" önceden öğrenmiş; Model A bunu bizim 4 kişimizden öğrenmeye çalışıyor ve mikrofon/mesafe farkını kişi farkı sanabiliyor.
 
 **Tahminim doğru çıktı mı?** *(Aşama 3'teki tahminle karşılaştır)*
 
-**Kaydedilen modeller:** `modeller/model_a.pt`, `modeller/model_b_kafa.pt` (ECAPA `pretrained_models/` içinde), `modeller/sonuclar.json`.
+**Kaydedilen modeller (2. çalıştırma):** `modeller/model_a.pt`, `modeller/model_b_kafa.pt` (ECAPA `pretrained_models/` içinde), `modeller/sonuclar.json`.
