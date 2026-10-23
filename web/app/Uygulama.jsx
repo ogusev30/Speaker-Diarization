@@ -8,6 +8,8 @@ import Menu, { MODLAR } from "./Menu";
 import OrnekSohbet from "./OrnekSohbet";
 import { BilinmeyenSekil, Sekil, isimYaz, renk, sekilAdi, sure, yuzde } from "./ortak";
 import SesHaritasi from "./SesHaritasi";
+import SohbetRaporu from "./SohbetRaporu";
+import TaklitOyunu from "./TaklitOyunu";
 
 const SN_PIKSEL = 64; // ıstakada 1 saniye (telefonda daha sık: daha çok taş görünsün)
 
@@ -58,7 +60,8 @@ export default function Uygulama() {
   const [hiz, setHiz] = useState(null); // bir pencere kaç ms
   const [yeniKey, setYeniKey] = useState(0);
   const [rafGenislik, setRafGenislik] = useState(0);
-  const [mod, setModDurum] = useState("canli"); // canli | ornek | harita (Menu.jsx)
+  const [mod, setModDurum] = useState("canli"); // canli | ornek | harita | oyun (Menu.jsx)
+  const [projeksiyon, setProjeksiyon] = useState(false); // F: tam ekran, sadece son konuşan ve ıstaka
 
   const model = useRef(null);
   const vad = useRef(null);
@@ -207,17 +210,32 @@ export default function Uygulama() {
     if (mod === "ornek" && vad.current && asama === "dinliyor") durdur();
   }, [mod]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Boşluk tuşu: başlat / durdur (odak bir düğmedeyse tarayıcı zaten tıklar)
-  tusla.current = () => {
+  // Projeksiyon modu: tarayıcı tam ekrana izin vermezse de sayfa sadeleşir
+  function projeksiyonAc(ac) {
+    setProjeksiyon(ac);
+    if (ac) document.documentElement.requestFullscreen?.().catch(() => {});
+    else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  }
+  useEffect(() => {
+    const cikti = () => { if (!document.fullscreenElement) setProjeksiyon(false); };
+    document.addEventListener("fullscreenchange", cikti);
+    return () => document.removeEventListener("fullscreenchange", cikti);
+  }, []);
+
+  // Boşluk tuşu: başlat / durdur (odak bir düğmedeyse tarayıcı zaten tıklar). F: projeksiyon, Esc: çık
+  tusla.current = (tus) => {
     if (mod === "ornek") return;
-    if (asama === "dinliyor") durdur();
+    if (tus === "KeyF") projeksiyonAc(!projeksiyon);
+    else if (tus === "Escape") projeksiyon && projeksiyonAc(false);
+    else if (asama === "dinliyor") durdur();
     else if (asama === "hazir") baslat();
   };
   useEffect(() => {
     const bas = (e) => {
-      if (e.code !== "Space" || e.repeat || e.target.closest?.("button, input, textarea, [contenteditable]")) return;
-      e.preventDefault();
-      tusla.current();
+      if (!["Space", "KeyF", "Escape"].includes(e.code) || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target.closest?.(e.code === "Space" ? "button, input, textarea, [contenteditable]" : "input, textarea, [contenteditable]")) return;
+      if (e.code === "Space") e.preventDefault();
+      tusla.current(e.code);
     };
     window.addEventListener("keydown", bas);
     return () => window.removeEventListener("keydown", bas);
@@ -361,7 +379,7 @@ export default function Uygulama() {
     : uyari === "mikhata" || asama === "modelhata" ? "" : "Mikrofon izni istenecek. Bir kol mesafesinden konuş.";
 
   return (
-    <div className="app">
+    <div className={`app${projeksiyon && mod !== "ornek" ? " projeksiyon" : ""}`}>
       <header className="top">
         <div className="top-sol">
         <Menu mod={mod} setMod={setMod} />
@@ -389,11 +407,13 @@ export default function Uygulama() {
         </main>
       ) : (
       <main className="grid">
-        {mod === "harita" && bilgi ? <SesHaritasi bilgi={bilgi} taslar={taslar} /> : (
+        {mod === "harita" && bilgi ? <SesHaritasi bilgi={bilgi} taslar={taslar} />
+          : mod === "oyun" && bilgi ? <TaklitOyunu bilgi={bilgi} taslar={taslar} dinliyor={dinliyor} /> : (
         <section className="istaka" aria-labelledby="rack-h">
           <div className="istaka-bas">
             <h2 id="rack-h">Istaka</h2>
             <span className="istaka-meta num">{taslar.length ? `${taslar.length} taş, ${sure(sonSure)}` : "Boş"}</span>
+            <button className="kucuk projeksiyon-dugme" onClick={() => projeksiyonAc(true)} title="Kısayol: F">Projeksiyon</button>
             <button className="kucuk" onClick={temizle} disabled={!taslar.length || hesapliyor > 0}>Temizle</button>
           </div>
           {taslar.length > 0 && (
@@ -440,6 +460,7 @@ export default function Uygulama() {
               )}
             </div>
           </div>
+          {!dinliyor && hesapliyor === 0 && taslar.length > 0 && <SohbetRaporu isimler={isimler} taslar={taslar} />}
         </section>
         )}
 
@@ -493,6 +514,12 @@ export default function Uygulama() {
           </div>
         </section>
       </main>
+      )}
+      {projeksiyon && mod !== "ornek" && (
+        <div className="projeksiyon-ipucu">
+          <span><kbd>Boşluk</kbd> başlat / durdur</span>
+          <button className="kucuk" onClick={() => projeksiyonAc(false)}>Çık <kbd>F</kbd></button>
+        </div>
       )}
     </div>
   );

@@ -470,3 +470,68 @@ kbd {
 /* Gerçekte kulvarı: yüzde yok, taşın tamamı konuşanın renginde */
 .tile.ince:not(:has(.pc)) .blok { flex: 1; border-bottom: 0; align-items: flex-start; }
 .ince-lip .tick:last-child { transform: translateX(-100%); border-left: 0; border-right: 2px solid var(--ivory); padding: 6px 6px 0 0; }
+
+/* ---------- taklit oyunu ---------- */
+.menu-liste button[data-mod="oyun"] svg { color: var(--felt); }
+.oyun { grid-area: istaka; border: var(--line) solid var(--ink); box-shadow: var(--shadow); background: var(--wood); min-width: 0; }
+.oyun-ic { display: grid; background: var(--ivory); }
+@media (min-width: 900px) { .oyun-ic { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.oyun-sol, .oyun-sag { padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.oyun-sol { border-bottom: var(--line) solid var(--ink); }
+@media (min-width: 900px) { .oyun-sol { border-bottom: 0; border-right: var(--line) solid var(--ink); } }
+.oyun .bigtile { min-height: 210px; }
+.oyun .bigtile .who { font-size: clamp(3rem, 12vw, 6rem); }
+.cekilen { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.benzer-h span { font-weight: 600; text-transform: none; color: var(--ink-soft); font-size: 14px; margin-left: 6px; font-variation-settings: "wdth" 100; }
+.players.rekorlar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Telefonda oyun en üstte; dar ekranda "Son" etiketi süreyle çakışmasın (kart zaten öne çıkıyor) */
+@media (max-width: 899px) { .grid:has(.oyun) { grid-template-areas: "istaka" "stage" "control" "sesler" "model"; } }
+@media (max-width: 480px) { .players .son-etiket { display: none; } }
+.puan, .puan-bos {
+  border: 4px solid var(--ink); box-shadow: var(--shadow-sm); padding: 12px 14px; min-height: 210px;
+  background: var(--c, var(--paper)); color: var(--on, var(--ink)); display: flex; flex-direction: column; transform-origin: 50% 0;
+}
+.puan-bos { border-style: dashed; box-shadow: none; }
+.puan small, .puan-bos small { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; display: flex; gap: 8px; align-items: center; }
+.puan em { font-style: normal; background: var(--ivory); color: var(--ink); border: 2px solid var(--ink); padding: 0 6px; }
+.puan b, .puan-bos b { font-size: clamp(4rem, 16vw, 8rem); line-height: .9; font-weight: 900; font-variation-settings: "wdth" 62; margin-top: auto; }
+.puan-bos b { color: var(--ink-soft); }
+.puan p, .puan-bos p { font-weight: 700; margin-top: 6px; }
+.denemeler { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.denemeler li { border: 2px solid var(--ink); padding: 2px 8px; display: flex; gap: 6px; background: var(--paper); font-size: 15px; }
+.denemeler li[data-iyi="true"] { background: var(--ink); color: var(--ivory); }
+
+/* ---------- sohbet raporu (Durdur'dan sonra) ---------- */
+.rapor { background: var(--ivory); border-top: var(--line) solid var(--ink); padding: 16px 18px 18px; }
+.rapor h3 { font-size: 1.1rem; font-weight: 900; text-transform: uppercase; font-variation-settings: "wdth" 80; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.rapor h3 span { font-weight: 600; text-transform: none; color: var(--ink-soft); font-size: 14px; font-variation-settings: "wdth" 100; }
+.rapor-ic { display: grid; gap: 16px; margin-top: 12px; }
+@media (min-width: 700px) { .rapor-ic { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.rapor-ic > div { border: var(--line) solid var(--ink); background: var(--paper); padding: 12px; }
+.rapor h4 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+.rapor dl { display: grid; gap: 6px; }
+.rapor dl div { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.rapor dt { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 700; }
+.rapor dd { font-weight: 900; font-size: 1.1rem; white-space: nowrap; }
+.rapor-kim { display: inline-flex; align-items: center; gap: 5px; background: var(--c); color: var(--on); border: 2px solid var(--ink); padding: 1px 6px; font-weight: 800; }
+.rapor-kim[data-bilinmeyen="true"] { background: var(--ivory); color: var(--ink); border-style: dashed; }
+.rapor-buyuk { font-size: 2.6rem; line-height: 1; font-weight: 900; font-variation-settings: "wdth" 66; margin-bottom: 8px; }
+.rapor-indir { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-top: 14px; }
+.rapor-indir span { font-size: 14px; color: var(--ink-soft); flex: 1 1 260px; }
+
+/* ---------- projeksiyon (F): sınıfın arkasından okunsun ---------- */
+.app.projeksiyon { max-width: none; padding-bottom: 96px; }
+.app.projeksiyon .top, .app.projeksiyon .sesler, .app.projeksiyon .model, .app.projeksiyon .control,
+.app.projeksiyon .scores, .app.projeksiyon .stage > h2, .app.projeksiyon .rapor, .app.projeksiyon .istaka-bas .kucuk { display: none; }
+.app.projeksiyon .grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "istaka"; }
+.app.projeksiyon .stage { padding: 0; background: transparent; border: 0; box-shadow: none; }
+.app.projeksiyon .bigtile { min-height: 52vh; padding: 3vw; }
+.app.projeksiyon .bigtile .who { font-size: clamp(5rem, 17vw, 18rem); line-height: .85; }
+.app.projeksiyon .bigtile.unknown .who { font-size: clamp(4rem, 12vw, 12rem); }
+.app.projeksiyon .bigtile .meta { font-size: clamp(1.2rem, 2.2vw, 2.2rem); }
+.app.projeksiyon .bigtile .shape svg { width: clamp(48px, 7vw, 120px); height: auto; }
+.projeksiyon-ipucu {
+  position: fixed; z-index: 20; right: 16px; bottom: 16px; display: flex; align-items: center; gap: 12px;
+  background: var(--ivory); border: var(--line) solid var(--ink); box-shadow: var(--shadow-sm); padding: 8px 8px 8px 14px; font-weight: 700;
+}
+@media (hover: none) { .projeksiyon-dugme { display: none; } }

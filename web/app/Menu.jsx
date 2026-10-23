@@ -6,6 +6,7 @@ export const MODLAR = [
   { id: "canli", ad: "Canlı dinle", acik: "Mikrofona konuş, ıstakaya taş dizilsin.", sekil: "square" },
   { id: "ornek", ad: "Örnek sohbet", acik: "Dört kişinin kayıtlı sohbeti çalar. Model dinler, gerçek cevapla yan yana görürsün.", sekil: "triangle" },
   { id: "harita", ad: "Ses haritası", acik: "Konuşman dört kişinin ses bulutlarından hangisine düşüyor?", sekil: "diamond" },
+  { id: "oyun", ad: "Taklit oyunu", acik: "Bir taş çek, o kişi gibi konuş. Model ne kadar inanırsa puanın o kadar.", sekil: "circle" },
 ];
 
 function Ikon({ sekil }) {
@@ -13,6 +14,7 @@ function Ikon({ sekil }) {
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" fill="currentColor" stroke="var(--ink)" strokeWidth="2.5">
       {sekil === "square" && <rect x="2" y="2" width="18" height="18" />}
       {sekil === "triangle" && <polygon points="11,2 20,20 2,20" />}
+      {sekil === "circle" && <circle cx="11" cy="11" r="9.5" />}
       {sekil === "diamond" && <polygon points="11,1.5 20.5,11 11,20.5 1.5,11" />}
     </svg>
   );
