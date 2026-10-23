@@ -35,3 +35,4 @@ training_calisti.ipynb
 
 # ONNX exportunun tüm sürümleri (fp32 84 MB); seçilen model web/public/models/ içinde
 web_model/
+!web/public/ornek/*.wav
