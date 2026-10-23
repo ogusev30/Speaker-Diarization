@@ -371,10 +371,10 @@ export default function Uygulama() {
         <Menu mod={mod} setMod={setMod} sahneAc={sahneAc} />
         <div className="brand">
           <svg width="40" height="48" viewBox="0 0 40 48" aria-hidden="true">
-            <rect x="7" y="7" width="31" height="39" fill="#111" />
-            <rect x="2" y="2" width="31" height="39" fill="#FBF6E9" stroke="#111" strokeWidth="3" />
-            <rect x="9" y="9" width="17" height="17" fill="#111" />
-            <rect x="9" y="31" width="17" height="4" fill="#111" />
+            <rect x="7" y="7" width="31" height="39" style={{ fill: "var(--ink)" }} />
+            <rect x="2" y="2" width="31" height="39" strokeWidth="3" style={{ fill: "var(--ivory)", stroke: "var(--ink)" }} />
+            <rect x="9" y="9" width="17" height="17" style={{ fill: "var(--ink)" }} />
+            <rect x="9" y="31" width="17" height="4" style={{ fill: "var(--ink)" }} />
           </svg>
           <div>
             <h1>Sıra Kimde?</h1>

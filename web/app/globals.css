@@ -14,6 +14,7 @@
   --onur: #1F4FD8;  --onur-on: #FFFFFF;
   --zehra: #141414; --zehra-on: #FFFFFF;
   --hata: #FF3EA5; /* modelin yanıldığı yer: dört kişinin renginden ayrı */
+  --hover: #FFFFFF;
   --line: 3px;
   --shadow: 6px 6px 0 var(--ink);
   --shadow-sm: 4px 4px 0 var(--ink);
@@ -183,7 +184,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .mic[data-duyuyor="true"]::after { outline-color: var(--elif); animation-duration: .8s; }
 @keyframes halka { from { outline-offset: 0; opacity: 1; } to { outline-offset: 14px; opacity: 0; } }
 .mic .gecen { font-size: .6em; font-variation-settings: "wdth" 70; opacity: .85; }
-.mic:hover { background: #fff; }
+.mic:hover { background: var(--hover); }
 .mic:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0 var(--ink); }
 .mic[data-live="true"], .mic[data-live="true"]:hover { background: var(--ink); color: var(--ivory); }
 .mic:disabled { cursor: not-allowed; background: var(--paper); color: var(--ink-soft); box-shadow: none; border-style: dashed; transform: none; }
@@ -226,7 +227,7 @@ kbd {
   padding: 6px 12px; min-height: 40px; font-weight: 800; font-size: 15px;
   transition: transform .08s, box-shadow .08s;
 }
-.kucuk:hover { background: #fff; }
+.kucuk:hover { background: var(--hover); }
 .kucuk:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
 .kucuk:disabled { cursor: not-allowed; color: var(--ink-soft); box-shadow: none; border-style: dashed; transform: none; background: transparent; }
 /* Özet şerit: bütün konuşma tek bakışta, dokununca o taşa gider */
@@ -339,7 +340,7 @@ kbd {
   background: var(--ivory); color: var(--ink); border: var(--line) solid var(--ink); box-shadow: var(--shadow-sm);
   transition: transform .08s, box-shadow .08s;
 }
-.menu-dugme:hover { background: #fff; }
+.menu-dugme:hover { background: var(--hover); }
 .menu-dugme:active, .menu-dugme[aria-expanded="true"] { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
 .menu-liste {
   position: absolute; z-index: 30; top: calc(100% + 12px); left: 0; width: min(360px, calc(100vw - 32px));
@@ -381,7 +382,7 @@ kbd {
 .sohbet-sec .kucuk { min-width: 44px; font-size: 17px; }
 .sohbet-sec .kucuk[aria-pressed="true"] { background: var(--elif); transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
 .kucuk.koyu { background: var(--ink); color: var(--ivory); min-width: 96px; }
-.kucuk.koyu:hover { background: #2a2a2a; }
+.kucuk.koyu:hover { background: color-mix(in srgb, var(--ink) 82%, var(--ivory)); }
 .ornek-aciklama { color: var(--ivory); font-weight: 600; padding: 12px 18px 0; max-width: 80ch; font-size: 15px; }
 
 .karsi { overflow-x: auto; overflow-y: hidden; margin-top: 12px; scrollbar-color: var(--ivory) var(--wood-lip); }
@@ -547,3 +548,61 @@ kbd {
 .app.sahne .guven .esik { font-size: 18px; }
 @media (max-width: 899px) { .app.sahne { padding-bottom: 24px; padding-inline: 16px; } }
 .rapor-tablo thead th:first-child { text-align: left; }
+
+/* ---------- renk temaları (menüden seçilir, tasarım aynı kalır) ---------- */
+:root[data-tema="eski"] {
+  --felt: #5F6B3E; --felt-deep: #48532D; --felt-ink: #F0E4C4;
+  --wood: #7A5233; --wood-lip: #4E3220;
+  --ivory: #EFE2C0; --paper: #E3D1A4; --hover: #F7EDD2;
+  --ink: #2B2117; --ink-soft: #5A4A36;
+  --cem: #B5462F; --cem-on: #FFF8E8;
+  --elif: #D4A03A; --elif-on: #2B2117;
+  --onur: #355A86; --onur-on: #FFF8E8;
+  --zehra: #2B2117; --zehra-on: #FFF8E8;
+  --hata: #D6457E;
+}
+/* Eski ıstaka: fildişi taşlar biraz sararmış */
+:root[data-tema="eski"] .tile, :root[data-tema="eski"] .bigtile { filter: sepia(.12); }
+:root[data-tema="gece"] {
+  --felt: #1C2B4A; --felt-deep: #121C33; --felt-ink: #F2EEE3;
+  --wood: #4A3426; --wood-lip: #2A1C14;
+  --ivory: #F2EEE3; --paper: #DCD5C3; --hover: #FFFFFF;
+  --ink: #0D0D12; --ink-soft: #3E3D45;
+  --cem: #F0353C; --cem-on: #FFFFFF;
+  --elif: #FFC933; --elif-on: #0D0D12;
+  --onur: #3366F0; --onur-on: #FFFFFF;
+  --zehra: #0D0D12; --zehra-on: #FFFFFF;
+  --hata: #FF4FAE;
+}
+:root[data-tema="bordo"] {
+  --felt: #7B1F2B; --felt-deep: #5C1520; --felt-ink: #FBF1E1;
+  --wood: #A86E33; --wood-lip: #6B4220;
+  --ivory: #FBF3E2; --paper: #EFE2C8; --hover: #FFFFFF;
+  --ink: #160F0C; --ink-soft: #4A3A30;
+  --cem: #E3242B; --cem-on: #FFFFFF;
+  --elif: #FFC21A; --elif-on: #160F0C;
+  --onur: #1F4FD8; --onur-on: #FFFFFF;
+  --zehra: #160F0C; --zehra-on: #FFFFFF;
+  --hata: #FF3EA5;
+}
+
+/* menüdeki tema seçici */
+.menu-tema { padding: 14px 16px 16px; }
+.menu-tema h3 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); margin-bottom: 10px; }
+.tema-sec { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.menu-liste .tema-sec button {
+  min-height: 0; padding: 0; display: flex; flex-direction: column; gap: 0; align-items: stretch;
+  border: var(--line) solid var(--ink); background: var(--ivory); box-shadow: var(--shadow-sm);
+  transition: transform .08s, box-shadow .08s;
+}
+.menu-liste .tema-sec button:hover { background: var(--ivory); transform: translate(-1px, -1px); }
+.menu-liste .tema-sec button[aria-pressed="true"] { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); outline: 3px solid var(--ink); outline-offset: 2px; }
+.tema-ornek { position: relative; height: 46px; background: var(--o-felt); border-bottom: var(--line) solid var(--ink); }
+.tema-ornek::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 14px; background: var(--o-wood); border-top: 2px solid var(--ink); }
+.tema-ornek i { position: absolute; z-index: 1; bottom: 8px; width: 16px; height: 24px; background: var(--o-ivory); border: 2px solid var(--ink); }
+.tema-ornek i::before { content: ""; position: absolute; left: 2px; right: 2px; top: 2px; height: 7px; background: var(--o-tas); }
+.tema-ornek i:nth-child(1) { left: 10px; --o-tas: var(--o-c1); }
+.tema-ornek i:nth-child(2) { left: 30px; --o-tas: var(--o-c2); }
+.tema-ornek i:nth-child(3) { left: 50px; --o-tas: var(--o-c3); }
+.menu-liste .tema-sec b { font-size: 14px; padding: 6px 8px; text-align: left; }
+.menu-liste { max-height: calc(100dvh - 96px); overflow-y: auto; overscroll-behavior: contain; }

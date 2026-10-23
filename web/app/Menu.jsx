@@ -11,6 +11,24 @@ export const MODLAR = [
   { id: "rapor", ad: "Sohbet raporu", acik: "Canlı dinlemenin özeti: kim kaç kez söz aldı, kim kimden sonra konuştu.", sekil: "bars" },
 ];
 
+// Renk temaları: tasarım aynı, sadece palet değişir (globals.css, :root[data-tema]). Örnek: çuha, ahşap, fildişi, üç taş rengi
+export const TEMALAR = [
+  { id: "klasik", ad: "Klasik", o: ["#0E7A47", "#8A4B1F", "#FBF6E9", "#E3242B", "#FFC21A", "#1F4FD8"] },
+  { id: "eski", ad: "Eski ıstaka", o: ["#5F6B3E", "#7A5233", "#EFE2C0", "#B5462F", "#D4A03A", "#355A86"] },
+  { id: "gece", ad: "Gece kahvesi", o: ["#1C2B4A", "#4A3426", "#F2EEE3", "#F0353C", "#FFC933", "#3366F0"] },
+  { id: "bordo", ad: "Kahvehane", o: ["#7B1F2B", "#A86E33", "#FBF3E2", "#E3242B", "#FFC21A", "#1F4FD8"] },
+];
+const TEMA_ANAHTAR = "sira-kimde-tema";
+
+function temaUygula(id) {
+  const kok = document.documentElement;
+  if (id === "klasik") delete kok.dataset.tema;
+  else kok.dataset.tema = id;
+  // Telefonun adres çubuğu da çuha renginde olsun
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", TEMALAR.find((t) => t.id === id).o[0]);
+  try { localStorage.setItem(TEMA_ANAHTAR, id); } catch { /* gizli pencere: sadece bu sayfada kalır */ }
+}
+
 function Ikon({ sekil }) {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" fill="currentColor" stroke="var(--ink)" strokeWidth="2.5">
@@ -26,8 +44,15 @@ function Ikon({ sekil }) {
 
 export default function Menu({ mod, setMod, sahneAc }) {
   const [acik, setAcik] = useState(false);
+  const [tema, setTema] = useState("klasik");
   const kok = useRef(null);
   const dugme = useRef(null);
+
+  useEffect(() => {
+    const t = document.documentElement.dataset.tema ?? "klasik";
+    setTema(t);
+    if (t !== "klasik") document.querySelector('meta[name="theme-color"]')?.setAttribute("content", TEMALAR.find((x) => x.id === t)?.o[0]);
+  }, []);
 
   useEffect(() => {
     if (!acik) return;
@@ -61,6 +86,18 @@ export default function Menu({ mod, setMod, sahneAc }) {
               </button>
             </li>
           ))}
+          <li className="menu-tema">
+            <h3 id="tema-h">Renk teması</h3>
+            <div className="tema-sec" role="group" aria-labelledby="tema-h">
+              {TEMALAR.map((t) => (
+                <button key={t.id} aria-pressed={tema === t.id} onClick={() => { temaUygula(t.id); setTema(t.id); }}
+                        style={{ "--o-felt": t.o[0], "--o-wood": t.o[1], "--o-ivory": t.o[2], "--o-c1": t.o[3], "--o-c2": t.o[4], "--o-c3": t.o[5] }}>
+                  <span className="tema-ornek" aria-hidden="true"><i /><i /><i /></span>
+                  <b>{t.ad}</b>
+                </button>
+              ))}
+            </div>
+          </li>
           <li className="menu-ayrac">
             <button data-mod="sahne" onClick={() => { sahneAc(); setAcik(false); }}>
               <Ikon sekil="screen" />
