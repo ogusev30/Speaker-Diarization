@@ -4,35 +4,17 @@ import { MicVAD } from "@ricky0123/vad-web/dist/real-time-vad";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ESIK, SR } from "../lib/konusmaci";
 import { adres, konusmayiTani, modelYukle } from "../lib/model";
+import Menu, { MODLAR } from "./Menu";
+import OrnekSohbet from "./OrnekSohbet";
+import { BilinmeyenSekil, Sekil, isimYaz, renk, sekilAdi, sure, yuzde } from "./ortak";
+import SesHaritasi from "./SesHaritasi";
 
 const SN_PIKSEL = 64; // ıstakada 1 saniye (telefonda daha sık: daha çok taş görünsün)
-const SEKILLER = { cem: "square", elif: "triangle", onur: "circle", zehra: "diamond" };
-const YEDEK_SEKILLER = ["square", "triangle", "circle", "diamond"];
-
-const yuzde = (x) => "%" + Math.round(x * 100);
-const sure = (sn) => `${Math.floor(sn / 60)}:${String(Math.floor(sn % 60)).padStart(2, "0")}`;
-const isimYaz = (id) => id.charAt(0).toLocaleUpperCase("tr") + id.slice(1);
-const renk = (id) => ({ "--c": `var(--${id}, #6B6B6B)`, "--on": `var(--${id}-on, #FFFFFF)` });
 
 // Gürültü azaltma, yankı engelleme ve otomatik seviye kapalı: eğitim kayıtlarında bunlar yoktu.
 const mikrofonAc = () => navigator.mediaDevices.getUserMedia({
   audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
 });
-
-function Sekil({ ad, boy = 22 }) {
-  const s = boy, h = 1.5;
-  const govde = {
-    square: <rect x={h} y={h} width={s - 3} height={s - 3} />,
-    triangle: <polygon points={`${s / 2},${h} ${s - h},${s - h} ${h},${s - h}`} />,
-    circle: <circle cx={s / 2} cy={s / 2} r={s / 2 - h} />,
-    diamond: <polygon points={`${s / 2},${h} ${s - h},${s / 2} ${s / 2},${s - h} ${h},${s / 2}`} />,
-  }[ad];
-  return (
-    <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="3">
-      {govde}
-    </svg>
-  );
-}
 
 // Model sonucu: yüzde 0'dan gerçek değere sayarak çıkar (gösterilen son sayı modelin sayısı)
 function Sayac({ deger }) {
@@ -62,15 +44,6 @@ function GuvenCubugu({ deger }) {
   );
 }
 
-function BilinmeyenSekil({ boy = 22 }) {
-  return (
-    <svg width={boy} height={boy} viewBox="0 0 22 22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="3">
-      <rect x="1.5" y="1.5" width="19" height="19" strokeDasharray="4 3" />
-      <path d="M8 8.5a3 3 0 1 1 4 2.8c-.7.3-1 .8-1 1.5V14M11 16.5v1.5" />
-    </svg>
-  );
-}
-
 export default function Uygulama() {
   const [asama, setAsama] = useState("yukleniyor"); // yukleniyor | hazir | dinliyor | modelhata
   const [uyari, setUyari] = useState(null); // null | "mikhata" | "konusmayok" | "sesyok"
@@ -85,6 +58,7 @@ export default function Uygulama() {
   const [hiz, setHiz] = useState(null); // bir pencere kaç ms
   const [yeniKey, setYeniKey] = useState(0);
   const [rafGenislik, setRafGenislik] = useState(0);
+  const [mod, setModDurum] = useState("canli"); // canli | ornek | harita (Menu.jsx)
 
   const model = useRef(null);
   const vad = useRef(null);
@@ -101,7 +75,7 @@ export default function Uygulama() {
 
   const zaman = () => (performance.now() - t0.current) / 1000;
   const isimler = bilgi?.labels ?? [];
-  const sekil = (k) => SEKILLER[isimler[k]] ?? YEDEK_SEKILLER[k % YEDEK_SEKILLER.length];
+  const sekil = (k) => sekilAdi(isimler, k);
 
   // ---------- Model: ilk açılışta iner ----------
   useEffect(() => {
@@ -213,8 +187,29 @@ export default function Uygulama() {
     dinlemeBas.current = 0;
   }
 
+  // ---------- Mod: adres çubuğundaki #ornek / #harita ----------
+  useEffect(() => {
+    const oku = () => {
+      const h = window.location.hash.slice(1);
+      setModDurum(MODLAR.some((m) => m.id === h) ? h : "canli");
+    };
+    oku();
+    window.addEventListener("hashchange", oku);
+    return () => window.removeEventListener("hashchange", oku);
+  }, []);
+  function setMod(m) {
+    history.replaceState(null, "", m === "canli" ? window.location.pathname : `#${m}`);
+    setModDurum(m);
+    window.scrollTo(0, 0);
+  }
+  // Örnek sohbet çalarken mikrofon kapansın
+  useEffect(() => {
+    if (mod === "ornek" && vad.current && asama === "dinliyor") durdur();
+  }, [mod]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Boşluk tuşu: başlat / durdur (odak bir düğmedeyse tarayıcı zaten tıklar)
   tusla.current = () => {
+    if (mod === "ornek") return;
     if (asama === "dinliyor") durdur();
     else if (asama === "hazir") baslat();
   };
@@ -368,6 +363,8 @@ export default function Uygulama() {
   return (
     <div className="app">
       <header className="top">
+        <div className="top-sol">
+        <Menu mod={mod} setMod={setMod} />
         <div className="brand">
           <svg width="40" height="48" viewBox="0 0 40 48" aria-hidden="true">
             <rect x="7" y="7" width="31" height="39" fill="#111" />
@@ -377,15 +374,22 @@ export default function Uygulama() {
           </svg>
           <div>
             <h1>Sıra Kimde?</h1>
-            <p>Konuş, seni tanıyayım.</p>
+            <p>{MODLAR.find((m) => m.id === mod).ad}</p>
           </div>
+        </div>
         </div>
         <div className="status" role="status" aria-live="polite" data-tone={durumYazisi[1]}>
           <i /><span>{durumYazisi[0]}</span>
         </div>
       </header>
 
+      {mod === "ornek" ? (
+        <main className="grid tek">
+          {bilgi ? <OrnekSohbet model={model.current} bilgi={bilgi} /> : <section className="board">{sahne()}</section>}
+        </main>
+      ) : (
       <main className="grid">
+        {mod === "harita" && bilgi ? <SesHaritasi bilgi={bilgi} taslar={taslar} /> : (
         <section className="istaka" aria-labelledby="rack-h">
           <div className="istaka-bas">
             <h2 id="rack-h">Istaka</h2>
@@ -437,6 +441,7 @@ export default function Uygulama() {
             </div>
           </div>
         </section>
+        )}
 
         <section className="board stage" aria-labelledby="stage-h">
           <h2 id="stage-h">Son konuşan</h2>
@@ -488,6 +493,7 @@ export default function Uygulama() {
           </div>
         </section>
       </main>
+      )}
     </div>
   );
 }
