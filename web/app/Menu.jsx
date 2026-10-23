@@ -1,11 +1,14 @@
 "use client";
-// Sol üstteki menü: üç mod arasında geçiş. Seçilen mod adres çubuğunda (#ornek, #harita) kalır.
+// Sol üstteki menü: modlar arasında geçiş. Seçilen mod adres çubuğunda (#ornek, #harita, ...) kalır.
+// En altta sahne modu: mod değil, canlı ekranı projektör için tam ekrana alır.
 import { useEffect, useRef, useState } from "react";
 
 export const MODLAR = [
   { id: "canli", ad: "Canlı dinle", acik: "Mikrofona konuş, ıstakaya taş dizilsin.", sekil: "square" },
   { id: "ornek", ad: "Örnek sohbet", acik: "Dört kişinin kayıtlı sohbeti çalar. Model dinler, gerçek cevapla yan yana görürsün.", sekil: "triangle" },
   { id: "harita", ad: "Ses haritası", acik: "Konuşman dört kişinin ses bulutlarından hangisine düşüyor?", sekil: "diamond" },
+  { id: "oyun", ad: "Taklit oyunu", acik: "Bir taş çekilir. O kişi gibi konuş, modelin ona verdiği yüzde puanın olur.", sekil: "circle" },
+  { id: "rapor", ad: "Sohbet raporu", acik: "Canlı dinlemenin özeti: kim kaç kez söz aldı, kim kimden sonra konuştu.", sekil: "bars" },
 ];
 
 function Ikon({ sekil }) {
@@ -14,11 +17,14 @@ function Ikon({ sekil }) {
       {sekil === "square" && <rect x="2" y="2" width="18" height="18" />}
       {sekil === "triangle" && <polygon points="11,2 20,20 2,20" />}
       {sekil === "diamond" && <polygon points="11,1.5 20.5,11 11,20.5 1.5,11" />}
+      {sekil === "circle" && <circle cx="11" cy="11" r="9.5" />}
+      {sekil === "bars" && <><rect x="2" y="10" width="5" height="10" /><rect x="8.5" y="3" width="5" height="17" /><rect x="15" y="7" width="5" height="13" /></>}
+      {sekil === "screen" && <><rect x="1.5" y="3" width="19" height="13" /><path d="M7 20h8M11 16v4" fill="none" /></>}
     </svg>
   );
 }
 
-export default function Menu({ mod, setMod }) {
+export default function Menu({ mod, setMod, sahneAc }) {
   const [acik, setAcik] = useState(false);
   const kok = useRef(null);
   const dugme = useRef(null);
@@ -55,6 +61,12 @@ export default function Menu({ mod, setMod }) {
               </button>
             </li>
           ))}
+          <li className="menu-ayrac">
+            <button data-mod="sahne" onClick={() => { sahneAc(); setAcik(false); }}>
+              <Ikon sekil="screen" />
+              <span><b>Sahne modu</b><small>Tam ekran, dev isim ve ıstaka. Projektörde sınıfın arkasından okunur. Kısayol F.</small></span>
+            </button>
+          </li>
         </ul>
       )}
     </nav>

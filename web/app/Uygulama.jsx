@@ -6,8 +6,10 @@ import { ESIK, SR } from "../lib/konusmaci";
 import { adres, konusmayiTani, modelYukle } from "../lib/model";
 import Menu, { MODLAR } from "./Menu";
 import OrnekSohbet from "./OrnekSohbet";
-import { BilinmeyenSekil, Sekil, isimYaz, renk, sekilAdi, sure, yuzde } from "./ortak";
+import { BilinmeyenSekil, Sayac, Sekil, isimYaz, renk, sekilAdi, sure, yuzde } from "./ortak";
 import SesHaritasi from "./SesHaritasi";
+import SohbetRaporu from "./SohbetRaporu";
+import TaklitOyunu from "./TaklitOyunu";
 
 const SN_PIKSEL = 64; // ıstakada 1 saniye (telefonda daha sık: daha çok taş görünsün)
 
@@ -15,24 +17,6 @@ const SN_PIKSEL = 64; // ıstakada 1 saniye (telefonda daha sık: daha çok taş
 const mikrofonAc = () => navigator.mediaDevices.getUserMedia({
   audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
 });
-
-// Model sonucu: yüzde 0'dan gerçek değere sayarak çıkar (gösterilen son sayı modelin sayısı)
-function Sayac({ deger }) {
-  const [v, setV] = useState(0);
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setV(deger); return; }
-    const bas = performance.now();
-    let id;
-    const adim = (t) => {
-      const k = Math.min(1, (t - bas) / 700);
-      setV(deger * (1 - (1 - k) ** 3));
-      if (k < 1) id = requestAnimationFrame(adim);
-    };
-    id = requestAnimationFrame(adim);
-    return () => cancelAnimationFrame(id);
-  }, [deger]);
-  return yuzde(v);
-}
 
 // Emin olma çubuğu: %60 eşiğinin neresinde olduğunu gösterir
 function GuvenCubugu({ deger }) {
@@ -58,7 +42,8 @@ export default function Uygulama() {
   const [hiz, setHiz] = useState(null); // bir pencere kaç ms
   const [yeniKey, setYeniKey] = useState(0);
   const [rafGenislik, setRafGenislik] = useState(0);
-  const [mod, setModDurum] = useState("canli"); // canli | ornek | harita (Menu.jsx)
+  const [mod, setModDurum] = useState("canli"); // canli | ornek | harita | oyun | rapor (Menu.jsx)
+  const [sahneModu, setSahneModu] = useState(false); // projektör: tam ekran, dev isim ve ıstaka
 
   const model = useRef(null);
   const vad = useRef(null);
@@ -202,22 +187,41 @@ export default function Uygulama() {
     setModDurum(m);
     window.scrollTo(0, 0);
   }
-  // Örnek sohbet çalarken mikrofon kapansın
+  // Örnek sohbet çalarken ve oyunda mikrofon kapansın (oyun mikrofonu kendisi açar)
   useEffect(() => {
-    if (mod === "ornek" && vad.current && asama === "dinliyor") durdur();
+    if ((mod === "ornek" || mod === "oyun") && vad.current && asama === "dinliyor") durdur();
+    if (mod !== "canli") setSahneModu(false);
   }, [mod]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Boşluk tuşu: başlat / durdur (odak bir düğmedeyse tarayıcı zaten tıklar)
-  tusla.current = () => {
-    if (mod === "ornek") return;
+  // ---------- Sahne modu: F tuşu ya da menü. Tam ekrandan Esc ile çıkınca o da kapanır ----------
+  function sahneAc(ac = true) {
+    if (ac && mod !== "canli") setMod("canli");
+    setSahneModu(ac);
+    try {
+      if (ac && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+      if (!ac && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    } catch { /* tam ekran yoksa (iPhone) sadece görünüm değişir */ }
+  }
+  useEffect(() => {
+    const cik = () => { if (!document.fullscreenElement) setSahneModu(false); };
+    document.addEventListener("fullscreenchange", cik);
+    return () => document.removeEventListener("fullscreenchange", cik);
+  }, []);
+
+  // Boşluk tuşu: başlat / durdur (odak bir düğmedeyse tarayıcı zaten tıklar). F: sahne modu
+  tusla.current = (kod) => {
+    if (kod === "KeyF") { if (mod === "canli" || sahneModu) sahneAc(!sahneModu); return; }
+    if (mod !== "canli" && mod !== "harita") return;
     if (asama === "dinliyor") durdur();
     else if (asama === "hazir") baslat();
   };
   useEffect(() => {
     const bas = (e) => {
-      if (e.code !== "Space" || e.repeat || e.target.closest?.("button, input, textarea, [contenteditable]")) return;
+      if ((e.code !== "Space" && e.code !== "KeyF") || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target.closest?.("input, textarea, [contenteditable]")) return;
+      if (e.code === "Space" && e.target.closest?.("button")) return;
       e.preventDefault();
-      tusla.current();
+      tusla.current(e.code);
     };
     window.addEventListener("keydown", bas);
     return () => window.removeEventListener("keydown", bas);
@@ -361,10 +365,10 @@ export default function Uygulama() {
     : uyari === "mikhata" || asama === "modelhata" ? "" : "Mikrofon izni istenecek. Bir kol mesafesinden konuş.";
 
   return (
-    <div className="app">
+    <div className={`app${sahneModu ? " sahne" : ""}`}>
       <header className="top">
         <div className="top-sol">
-        <Menu mod={mod} setMod={setMod} />
+        <Menu mod={mod} setMod={setMod} sahneAc={sahneAc} />
         <div className="brand">
           <svg width="40" height="48" viewBox="0 0 40 48" aria-hidden="true">
             <rect x="7" y="7" width="31" height="39" fill="#111" />
@@ -383,9 +387,12 @@ export default function Uygulama() {
         </div>
       </header>
 
-      {mod === "ornek" ? (
+      {mod === "ornek" || mod === "oyun" || mod === "rapor" ? (
         <main className="grid tek">
-          {bilgi ? <OrnekSohbet model={model.current} bilgi={bilgi} /> : <section className="board">{sahne()}</section>}
+          {!bilgi ? <section className="board">{sahne()}</section>
+            : mod === "ornek" ? <OrnekSohbet model={model.current} bilgi={bilgi} />
+            : mod === "oyun" ? <TaklitOyunu model={model.current} bilgi={bilgi} />
+            : <SohbetRaporu bilgi={bilgi} taslar={taslar} canliyaGit={() => setMod("canli")} />}
         </main>
       ) : (
       <main className="grid">
@@ -394,7 +401,10 @@ export default function Uygulama() {
           <div className="istaka-bas">
             <h2 id="rack-h">Istaka</h2>
             <span className="istaka-meta num">{taslar.length ? `${taslar.length} taş, ${sure(sonSure)}` : "Boş"}</span>
-            <button className="kucuk" onClick={temizle} disabled={!taslar.length || hesapliyor > 0}>Temizle</button>
+            {taslar.length > 1 && !dinliyor && !sahneModu && <button className="kucuk" onClick={() => setMod("rapor")}>Rapor</button>}
+            {sahneModu
+              ? <button className="kucuk koyu" onClick={() => sahneAc(false)}>Sahneden çık</button>
+              : <button className="kucuk" onClick={temizle} disabled={!taslar.length || hesapliyor > 0}>Temizle</button>}
           </div>
           {taslar.length > 0 && (
             <div className="serit" role="group" aria-label="Bütün konuşma, baştan sona">
@@ -463,7 +473,7 @@ export default function Uygulama() {
             </span>
           </button>
           {ipucu && <p className="mic-hint">{ipucu}</p>}
-          {(asama === "hazir" || dinliyor) && <p className="kbd-hint">Kısayol: <kbd>Boşluk</kbd></p>}
+          {(asama === "hazir" || dinliyor) && <p className="kbd-hint">Kısayol: <kbd>Boşluk</kbd> başlat/durdur, <kbd>F</kbd> sahne modu</p>}
         </div>
 
         <section className="board sesler" aria-labelledby="players-h">
