@@ -1,0 +1,5 @@
+node_modules
+.next
+# scripts/copy-assets.mjs build sırasında node_modules'tan kopyalar
+public/ort
+public/vad

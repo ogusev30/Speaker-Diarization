@@ -4,3 +4,5 @@ node_modules/
 # scripts/copy-assets.mjs her build'de node_modules'tan kopyalar
 public/ort/
 public/vad/
+.vercel
+.env*
