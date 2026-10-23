@@ -2,10 +2,10 @@
 // Sadece gerçek zamanlı VAD: paketin ana girişi dosyadan VAD'ı ve tam ONNX Runtime'ı da getirirdi
 import { MicVAD } from "@ricky0123/vad-web/dist/real-time-vad";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { SR } from "../lib/konusmaci";
+import { ESIK, SR } from "../lib/konusmaci";
 import { adres, konusmayiTani, modelYukle } from "../lib/model";
 
-const SN_PIKSEL = 56; // zaman çizelgesinde 1 saniye
+const SN_PIKSEL = 64; // ıstakada 1 saniye (telefonda daha sık: daha çok taş görünsün)
 const SEKILLER = { cem: "square", elif: "triangle", onur: "circle", zehra: "diamond" };
 const YEDEK_SEKILLER = ["square", "triangle", "circle", "diamond"];
 
@@ -34,6 +34,34 @@ function Sekil({ ad, boy = 22 }) {
   );
 }
 
+// Model sonucu: yüzde 0'dan gerçek değere sayarak çıkar (gösterilen son sayı modelin sayısı)
+function Sayac({ deger }) {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setV(deger); return; }
+    const bas = performance.now();
+    let id;
+    const adim = (t) => {
+      const k = Math.min(1, (t - bas) / 700);
+      setV(deger * (1 - (1 - k) ** 3));
+      if (k < 1) id = requestAnimationFrame(adim);
+    };
+    id = requestAnimationFrame(adim);
+    return () => cancelAnimationFrame(id);
+  }, [deger]);
+  return yuzde(v);
+}
+
+// Emin olma çubuğu: %60 eşiğinin neresinde olduğunu gösterir
+function GuvenCubugu({ deger }) {
+  return (
+    <div className="guven" aria-hidden="true">
+      <i style={{ width: `${Math.round(deger * 100)}%` }} />
+      <span className="esik" style={{ left: `${ESIK * 100}%` }}>eşik {yuzde(ESIK)}</span>
+    </div>
+  );
+}
+
 function BilinmeyenSekil({ boy = 22 }) {
   return (
     <svg width={boy} height={boy} viewBox="0 0 22 22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="3">
@@ -45,7 +73,7 @@ function BilinmeyenSekil({ boy = 22 }) {
 
 export default function Uygulama() {
   const [asama, setAsama] = useState("yukleniyor"); // yukleniyor | hazir | dinliyor | modelhata
-  const [uyari, setUyari] = useState(null); // null | "mikhata" | "konusmayok"
+  const [uyari, setUyari] = useState(null); // null | "mikhata" | "konusmayok" | "sesyok"
   const [hataMesaji, setHataMesaji] = useState("");
   const [yukleme, setYukleme] = useState({ inen: 0, toplam: 0 });
   const [bilgi, setBilgi] = useState(null);
@@ -65,7 +93,11 @@ export default function Uygulama() {
   const kuyruk = useRef(Promise.resolve());
   const buDinlemede = useRef(0);
   const sonSeviye = useRef(0);
+  const tepe = useRef(0); // bu dinlemedeki en yüksek mikrofon seviyesi
+  const dinlemeBas = useRef(0);
   const raf = useRef(null);
+  const grup = useRef(0); // her konuşmanın taşları aynı grupta: sadece son grup düşer
+  const tusla = useRef(null);
 
   const zaman = () => (performance.now() - t0.current) / 1000;
   const isimler = bilgi?.labels ?? [];
@@ -103,7 +135,8 @@ export default function Uygulama() {
     kuyruk.current = kuyruk.current
       .then(async () => {
         const r = await konusmayiTani(model.current, ses, bas);
-        setTaslar((t) => [...t, ...r.taslar]);
+        const g = ++grup.current;
+        setTaslar((t) => [...t, ...r.taslar.map((x) => ({ ...x, grup: g }))]);
         setHiz(r.msPencere);
         setYeniKey((k) => k + 1);
       })
@@ -118,7 +151,9 @@ export default function Uygulama() {
     let s = 0;
     for (let i = 0; i < kare.length; i++) s += kare[i] * kare[i];
     const db = 10 * Math.log10(s / kare.length + 1e-10);
-    setSeviye(Math.max(0, Math.min(1, (db + 60) / 50)));
+    const sv = Math.max(0, Math.min(1, (db + 60) / 50));
+    tepe.current = Math.max(tepe.current, sv);
+    setSeviye(sv);
   }, []);
 
   // ---------- Mikrofon ----------
@@ -134,6 +169,9 @@ export default function Uygulama() {
           getStream: mikrofonAc,
           resumeStream: mikrofonAc,
           startOnLoad: false,
+          // Durdur'a basınca süren konuşma atılmasın (varsayılan: atılır; konuşma bitti sayılması 1,4 sn sessizlik bekler)
+          submitUserSpeechOnPause: true,
+          minSpeechMs: 250, // kısa bir bağırış da sayılsın (varsayılan 400)
           onSpeechRealStart: () => setBekleyen(Math.max(sonBit.current, zaman())),
           onVADMisfire: () => setBekleyen(null),
           onSpeechEnd: isle,
@@ -142,6 +180,9 @@ export default function Uygulama() {
       }
       if (t0.current === null) t0.current = performance.now();
       buDinlemede.current = 0;
+      tepe.current = 0;
+      dinlemeBas.current = zaman();
+      setSimdi(zaman());
       await vad.current.start();
       if (vad.current.errored) throw new Error(vad.current.errored);
       setAsama("dinliyor");
@@ -159,15 +200,40 @@ export default function Uygulama() {
     setAsama("hazir");
     setBekleyen(null);
     setSeviye(0);
-    if (buDinlemede.current === 0) setUyari("konusmayok");
+    // Seviye çubukları hiç oynamadıysa sorun mikrofonda, oynadıysa seste konuşma yoktu
+    if (buDinlemede.current === 0) setUyari(tepe.current < 0.25 ? "sesyok" : "konusmayok");
   }
 
-  // Konuşma sürerken "Dinleniyor..." taşı büyüsün
+  function temizle() {
+    setTaslar([]);
+    setBekleyen(null);
+    setUyari(null);
+    sonBit.current = 0;
+    t0.current = asama === "dinliyor" ? performance.now() : null;
+    dinlemeBas.current = 0;
+  }
+
+  // Boşluk tuşu: başlat / durdur (odak bir düğmedeyse tarayıcı zaten tıklar)
+  tusla.current = () => {
+    if (asama === "dinliyor") durdur();
+    else if (asama === "hazir") baslat();
+  };
   useEffect(() => {
-    if (bekleyen === null) return;
+    const bas = (e) => {
+      if (e.code !== "Space" || e.repeat || e.target.closest?.("button, input, textarea, [contenteditable]")) return;
+      e.preventDefault();
+      tusla.current();
+    };
+    window.addEventListener("keydown", bas);
+    return () => window.removeEventListener("keydown", bas);
+  }, []);
+
+  // Dinlerken saat işlesin, konuşma sürerken "Dinleniyor" taşı büyüsün
+  useEffect(() => {
+    if (asama !== "dinliyor") return;
     const id = setInterval(() => setSimdi(zaman()), 200);
     return () => clearInterval(id);
-  }, [bekleyen]);
+  }, [asama]);
 
   // ---------- Zaman çizelgesi her zaman en sona kaysın ----------
   useLayoutEffect(() => {
@@ -178,7 +244,7 @@ export default function Uygulama() {
   }, [asama]);
   useEffect(() => {
     if (raf.current) raf.current.scrollLeft = raf.current.scrollWidth;
-  }, [taslar.length, bekleyen, simdi]);
+  }, [taslar.length, bekleyen, bekleyen !== null ? simdi : 0]);
 
   // ---------- Görünüm ----------
   const son = taslar[taslar.length - 1];
@@ -222,19 +288,29 @@ export default function Uygulama() {
         </div>
       );
     }
+    if (uyari === "sesyok") {
+      return (
+        <div className="notice" role="alert">
+          <h3>Mikrofondan ses gelmedi</h3>
+          <p>Seviye çubukları hiç oynamadı. Tarayıcının doğru mikrofonu kullandığına bak, sonra tekrar dene.</p>
+          <button className="mic btn-tekrar" onClick={baslat}>Tekrar dene</button>
+        </div>
+      );
+    }
     if (uyari === "konusmayok") {
       return (
         <div className="notice" role="alert">
           <h3>Konuşma bulunamadı</h3>
-          <p>Mikrofon ses aldı ama içinde konuşma yoktu. Biraz daha yakından ve yüksek sesle tekrar dene.</p>
+          <p>Ses geldi ama konuşmaya benzemedi. Bir kol mesafesinden, normal sesle 2-3 saniyelik bir cümle kur. Bağırınca ses bozulur.</p>
+          <button className="mic btn-tekrar" onClick={baslat}>Tekrar dene</button>
         </div>
       );
     }
     if (!son) {
       return (
         <div className="bigtile empty">
-          <div className="who">Henüz kimse</div>
-          <div className="meta">Başlat&apos;a bas ve konuş. Konuşman bitince adın burada çıkar.</div>
+          <div className="who">{asama === "dinliyor" ? "Dinliyorum" : "Henüz kimse"}</div>
+          <div className="meta">{asama === "dinliyor" ? "Konuş. Sustuğunda adın burada çıkar." : "Başlat'a bas ve konuş. Konuşman bitince adın burada çıkar."}</div>
         </div>
       );
     }
@@ -246,13 +322,15 @@ export default function Uygulama() {
           <div key={yeniKey} className="bigtile flip" style={renk(kisi)}>
             <span className="shape"><Sekil ad={sekil(son.kisi)} boy={40} /></span>
             <div className="who">{isimYaz(kisi)}</div>
-            <div className="meta">Model <b className="num">{yuzde(son.guven)}</b> emin</div>
+            <div className="meta">Model <b className="num"><Sayac deger={son.guven} /></b> emin</div>
+            <GuvenCubugu deger={son.guven} />
           </div>
         ) : (
           <div key={yeniKey} className="bigtile unknown flip">
             <span className="shape"><BilinmeyenSekil boy={40} /></span>
             <div className="who">Tanıyamadım</div>
-            <div className="meta">En yakın {isimYaz(kisi)}, ama sadece <b className="num">{yuzde(son.guven)}</b>. Bu dört kişiden biri değilsen normal.</div>
+            <div className="meta">En yakın {isimYaz(kisi)}, ama sadece <b className="num"><Sayac deger={son.guven} /></b>. Eşiğin altında kaldı. Bu dört kişiden biri değilsen normal.</div>
+            <GuvenCubugu deger={son.guven} />
           </div>
         )}
         <div className="scores" aria-label="Kişilerin puanı">
@@ -268,22 +346,34 @@ export default function Uygulama() {
     );
   }
 
+  const px = rafGenislik && rafGenislik < 600 ? 40 : SN_PIKSEL;
   const bitis = Math.max(sonBit.current, bekleyen !== null ? simdi : 0);
-  const izGenislik = Math.max(bitis * SN_PIKSEL + 80, rafGenislik);
+  const izGenislik = Math.max(bitis * px + 96, rafGenislik);
   const isaretler = [];
-  for (let s = 0; s * SN_PIKSEL < izGenislik; s += 5) isaretler.push(s);
+  for (let s = 0; s * px < izGenislik; s += 5) isaretler.push(s);
   const dinliyor = asama === "dinliyor";
   const sonSure = taslar.length ? taslar[taslar.length - 1].bit : 0;
+  const sonGrup = taslar.length ? taslar[taslar.length - 1].grup : 0;
+  // Kim ne kadar konuştu (saniye); son eleman "Tanıyamadım"
+  const konusmaSuresi = new Array(isimler.length + 1).fill(0);
+  for (const t of taslar) konusmaSuresi[t.tanindi ? t.kisi : isimler.length] += t.bit - t.bas;
+  const toplamKonusma = konusmaSuresi.reduce((a, b) => a + b, 0);
+  const pay = (sn) => (toplamKonusma ? sn / toplamKonusma : 0);
+  const sonKisi = son?.tanindi ? son.kisi : -1;
+  const kaydir = (t) => raf.current?.scrollTo({ left: Math.max(0, t.bas * px - 24) });
+  const ipucu = asama === "yukleniyor" ? "Model inince düğme açılır."
+    : dinliyor ? "Dinliyorum. Sustuğunda taş gelir."
+    : uyari === "mikhata" || asama === "modelhata" ? "" : "Mikrofon izni istenecek. Bir kol mesafesinden konuş.";
 
   return (
     <div className="app">
       <header className="top">
         <div className="brand">
-          <svg width="40" height="46" viewBox="0 0 40 46" aria-hidden="true">
-            <rect x="6" y="5" width="32" height="40" fill="#111" />
-            <rect x="2" y="1" width="32" height="40" fill="#E3242B" stroke="#111" strokeWidth="3" />
-            <rect x="10" y="9" width="16" height="16" fill="#FBF6E9" stroke="#111" strokeWidth="3" />
-            <rect x="8" y="31" width="20" height="4" fill="#111" />
+          <svg width="40" height="48" viewBox="0 0 40 48" aria-hidden="true">
+            <rect x="7" y="7" width="31" height="39" fill="#111" />
+            <rect x="2" y="2" width="31" height="39" fill="#FBF6E9" stroke="#111" strokeWidth="3" />
+            <rect x="9" y="9" width="17" height="17" fill="#111" />
+            <rect x="9" y="31" width="17" height="4" fill="#111" />
           </svg>
           <div>
             <h1>Sıra Kimde?</h1>
@@ -295,94 +385,109 @@ export default function Uygulama() {
         </div>
       </header>
 
-      <div className="grid">
-        <div className="col">
-          <section className="board stage" aria-labelledby="stage-h">
-            <h2 id="stage-h">Son konuşan</h2>
-            <div>{sahne()}</div>
-          </section>
-          <div>
-            <button className="mic" data-live={String(dinliyor)} disabled={asama === "yukleniyor" || asama === "modelhata"}
-                    onClick={dinliyor ? durdur : baslat}>
-              <svg width="34" height="40" viewBox="0 0 34 40" aria-hidden="true">
-                <rect x="10" y="2" width="14" height="22" fill="none" stroke="currentColor" strokeWidth="4" />
-                <path d="M4 16v4c0 7 6 11 13 11s13-4 13-11v-4" fill="none" stroke="currentColor" strokeWidth="4" />
-                <path d="M17 31v7M9 38h16" stroke="currentColor" strokeWidth="4" />
-              </svg>
-              <span>{asama === "yukleniyor" ? "Bekle" : dinliyor ? "Durdur" : "Başlat"}</span>
-              <span className="level" aria-hidden="true">
-                {[0.6, 0.85, 1, 0.75, 0.95, 0.7, 0.55].map((k, i) => <i key={i} style={{ height: `${6 + seviye * 28 * k}px` }} />)}
-              </span>
-            </button>
-            <p className="mic-hint">
-              {asama === "yukleniyor" ? "Model inince düğme açılır."
-                : dinliyor ? "Dinliyorum. Konuşman bitince taş gelir."
-                : uyari === "mikhata" || asama === "modelhata" ? "" : "Mikrofon izni istenecek."}
-            </p>
+      <main className="grid">
+        <section className="istaka" aria-labelledby="rack-h">
+          <div className="istaka-bas">
+            <h2 id="rack-h">Istaka</h2>
+            <span className="istaka-meta num">{taslar.length ? `${taslar.length} taş, ${sure(sonSure)}` : "Boş"}</span>
+            <button className="kucuk" onClick={temizle} disabled={!taslar.length || hesapliyor > 0}>Temizle</button>
           </div>
-        </div>
-
-        <div className="col">
-          <section className="board rack-board" aria-labelledby="rack-h">
-            <h2 id="rack-h">Zaman çizelgesi <span>{taslar.length ? `${taslar.length} taş, ${sure(sonSure)}` : ""}</span></h2>
-            <div className="rack" ref={raf} tabIndex={0} aria-label="Konuşmaların zaman çizelgesi">
-              <div className="track" style={{ width: izGenislik }}>
-                <div className="lip" />
-                {isaretler.map((s) => <span key={s} className="tick" style={{ left: s * SN_PIKSEL }}>{sure(s)}</span>)}
-                {!taslar.length && bekleyen === null && (
-                  <p className="rack-empty">Henüz taş yok. Her konuşma bittiğinde buraya, konuşanın renginde bir taş dizilir.</p>
-                )}
-                {taslar.map((t, k) => {
-                  const kisi = isimler[t.kisi];
-                  const konum = { left: t.bas * SN_PIKSEL, width: Math.max(18, (t.bit - t.bas) * SN_PIKSEL - 6) };
-                  const dus = k === taslar.length - 1 ? " drop" : "";
-                  const baslik = `${t.tanindi ? isimYaz(kisi) : "Tanıyamadım"} ${yuzde(t.guven)}, ${sure(t.bas)} - ${sure(t.bit)}`;
-                  return t.tanindi ? (
-                    <div key={`${k}-${yeniKey}`} className={`tile${dus}`} style={{ ...konum, ...renk(kisi) }} title={baslik}>
-                      <span className="nm">{isimYaz(kisi)}</span>
-                      <span className="row"><span className="pc">{yuzde(t.guven)}</span><Sekil ad={sekil(t.kisi)} boy={18} /></span>
-                    </div>
-                  ) : (
-                    <div key={`${k}-${yeniKey}`} className={`tile unknown${dus}`} style={konum} title={baslik}>
-                      <span className="nm">Tanıyamadım</span>
-                      <span className="row"><span className="pc">{yuzde(t.guven)}</span><BilinmeyenSekil boy={18} /></span>
-                    </div>
-                  );
-                })}
-                {bekleyen !== null && (
-                  <div className="tile pending" style={{ left: bekleyen * SN_PIKSEL, width: Math.max(60, (simdi - bekleyen) * SN_PIKSEL - 6) }}>
-                    Dinleniyor...
+          {taslar.length > 0 && (
+            <div className="serit" role="group" aria-label="Bütün konuşma, baştan sona">
+              {taslar.map((t) => {
+                const kisi = isimler[t.kisi];
+                const ad = t.tanindi ? isimYaz(kisi) : "Tanıyamadım";
+                return (
+                  <button key={`${t.grup}-${t.bas}`} className={t.tanindi ? "" : "unknown"}
+                          style={{ left: `${(100 * t.bas) / sonSure}%`, width: `${(100 * (t.bit - t.bas)) / sonSure}%`, ...(t.tanindi ? renk(kisi) : {}) }}
+                          onClick={() => kaydir(t)} title={`${ad} ${yuzde(t.guven)}, ${sure(t.bas)}`}
+                          aria-label={`${ad} ${yuzde(t.guven)}, ${sure(t.bas)} - ${sure(t.bit)}. Taşa git`} />
+                );
+              })}
+            </div>
+          )}
+          <div className="rack" ref={raf} tabIndex={0} aria-label="Konuşmaların zaman çizelgesi">
+            <div className="track" style={{ width: izGenislik }}>
+              <div className="lip" />
+              {isaretler.map((s) => <span key={s} className="tick" style={{ left: s * px }}>{sure(s)}</span>)}
+              {!taslar.length && bekleyen === null && (
+                <p className="rack-empty">Her konuşma bitince buraya, konuşanın renginde bir taş dizilir.</p>
+              )}
+              {taslar.map((t) => {
+                const kisi = isimler[t.kisi];
+                const konum = { left: t.bas * px, width: Math.max(30, (t.bit - t.bas) * px - 6) };
+                const dus = t.grup === sonGrup ? " drop" : "";
+                const baslik = `${t.tanindi ? isimYaz(kisi) : "Tanıyamadım"} ${yuzde(t.guven)}, ${sure(t.bas)} - ${sure(t.bit)}`;
+                return (
+                  <div key={`${t.grup}-${t.bas}`} className={`tile${t.tanindi ? "" : " unknown"}${dus}`}
+                       style={t.tanindi ? { ...konum, ...renk(kisi) } : konum} title={baslik} aria-label={baslik}>
+                    <span className="blok">
+                      {t.tanindi ? <Sekil ad={sekil(t.kisi)} boy={18} /> : <BilinmeyenSekil boy={18} />}
+                      <span className="nm">{t.tanindi ? isimYaz(kisi) : "Tanıyamadım"}</span>
+                    </span>
+                    <span className="pc">{yuzde(t.guven)}</span>
                   </div>
-                )}
-              </div>
+                );
+              })}
+              {bekleyen !== null && (
+                <div className="tile pending" style={{ left: bekleyen * px, width: Math.max(104, (simdi - bekleyen) * px - 6) }}>
+                  Dinleniyor
+                </div>
+              )}
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section className="board" aria-labelledby="players-h">
-            <h2 id="players-h">Tanıdığı sesler</h2>
-            <div className="players">
-              {isimler.map((id, k) => (
-                <div key={id} className="player" style={renk(id)}><span>{isimYaz(id)}</span><Sekil ad={sekil(k)} boy={20} /></div>
-              ))}
-              <div className="player unknown"><span>Tanıyamadım</span><BilinmeyenSekil boy={20} /></div>
-            </div>
-            <p className="legend-note">Model sadece bu {isimler.length || "dört"} kişiyi tanır. Emin olma oranı %60&apos;ın altına düşerse isim yerine &quot;Tanıyamadım&quot; yazar; yabancı biri konuştuğunda da bunu görürsün.</p>
-          </section>
+        <section className="board stage" aria-labelledby="stage-h">
+          <h2 id="stage-h">Son konuşan</h2>
+          <div>{sahne()}</div>
+        </section>
 
-          <section className="board" aria-labelledby="model-h">
-            <div className="model">
-              <div className="der"><b className="num">{bilgi ? `%${(100 * bilgi.der).toFixed(1).replace(".", ",")}` : "…"}</b><span>DER</span></div>
-              <div>
-                <h3 id="model-h">{bilgi?.model_adi ?? "Model B: ECAPA + sınıflandırıcı"}</h3>
-                <p>DER, 20 deneme sohbetinde konuşma süresinin yüzde kaçında yanıldığını gösterir. Düşük olan daha iyi. Model telefonunda ya da bilgisayarında çalışır, sesin hiçbir yere gönderilmez.</p>
-                {hiz !== null && <p className="hiz">Bu cihazda bir pencere: {Math.round(hiz)} ms</p>}
-              </div>
-            </div>
-          </section>
+        <div className="control">
+          <button className="mic" data-live={String(dinliyor)} data-duyuyor={String(bekleyen !== null)} disabled={asama === "yukleniyor" || asama === "modelhata"}
+                  onClick={dinliyor ? durdur : baslat}>
+            <svg width="34" height="40" viewBox="0 0 34 40" aria-hidden="true">
+              <rect x="10" y="2" width="14" height="22" fill="none" stroke="currentColor" strokeWidth="4" />
+              <path d="M4 16v4c0 7 6 11 13 11s13-4 13-11v-4" fill="none" stroke="currentColor" strokeWidth="4" />
+              <path d="M17 31v7M9 38h16" stroke="currentColor" strokeWidth="4" />
+            </svg>
+            <span>{asama === "yukleniyor" ? "Bekle" : dinliyor ? "Durdur" : "Başlat"}</span>
+            {dinliyor && <span className="gecen num" aria-hidden="true">{sure(Math.max(0, simdi - dinlemeBas.current))}</span>}
+            <span className="level" aria-hidden="true">
+              {[0.6, 0.85, 1, 0.75, 0.95].map((k, i) => <i key={i} style={{ transform: `scaleY(${0.15 + seviye * 0.85 * k})` }} />)}
+            </span>
+          </button>
+          {ipucu && <p className="mic-hint">{ipucu}</p>}
+          {(asama === "hazir" || dinliyor) && <p className="kbd-hint">Kısayol: <kbd>Boşluk</kbd></p>}
         </div>
-      </div>
 
-      <p className="foot">Her konuşma bittiğinde sonuç gelir: ses 2 saniyelik parçalarla, yarım saniye kaydırılarak dinlenir. En iyi sonuç için mikrofona bir kol mesafesinden konuş.</p>
+        <section className="board sesler" aria-labelledby="players-h">
+          <h2 id="players-h">Tanıdığı sesler <span>ne kadar konuştu</span></h2>
+          <div className="players">
+            {isimler.map((id, k) => (
+              <div key={id} className={`player${k === sonKisi ? " sirada" : ""}`} style={renk(id)}>
+                <span className="blok"><Sekil ad={sekil(k)} boy={18} />{isimYaz(id)}{k === sonKisi && <em className="son-etiket">Son</em>}</span>
+                <span className="sn num">{sure(konusmaSuresi[k])}{toplamKonusma > 0 && <small>{yuzde(pay(konusmaSuresi[k]))}</small>}</span>
+                <span className="pay" aria-hidden="true"><i style={{ width: `${100 * pay(konusmaSuresi[k])}%` }} /></span>
+              </div>
+            ))}
+            <div className="player unknown">
+              <span className="blok"><BilinmeyenSekil boy={18} />Tanıyamadım</span>
+              <span className="sn num">{sure(konusmaSuresi[isimler.length])}{toplamKonusma > 0 && <small>{yuzde(pay(konusmaSuresi[isimler.length]))}</small>}</span>
+              <span className="pay" aria-hidden="true"><i style={{ width: `${100 * pay(konusmaSuresi[isimler.length])}%` }} /></span>
+            </div>
+          </div>
+          <p className="legend-note">Sadece bu {isimler.length || "dört"} kişiyi tanır. Emin olma %60&apos;ın altındaysa isim yerine &quot;Tanıyamadım&quot; yazar.</p>
+        </section>
+
+        <section className="model" aria-labelledby="model-h">
+          <div className="der"><b className="num">{bilgi ? `%${(100 * bilgi.der).toFixed(1).replace(".", ",")}` : "…"}</b><span>DER</span></div>
+          <div>
+            <h3 id="model-h">{bilgi?.model_adi ?? "Model B: ECAPA + sınıflandırıcı"}</h3>
+            <p>DER: 20 deneme sohbetinde konuşma süresinin yüzde kaçında yanıldığı. Düşük olan iyi. Ses 2 saniyelik parçalarla dinlenir ve cihazından çıkmaz.{hiz !== null && <> Bu cihazda bir parça <span className="num">{Math.round(hiz)} ms</span> sürüyor.</>}</p>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
